@@ -1,4 +1,4 @@
 mcl
 ===
 
-A Modeling Core Langiuage on top of OCaml
+A Modeling Core Language on top of OCaml
