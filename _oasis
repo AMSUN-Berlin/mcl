@@ -1,0 +1,32 @@
+OASISFormat: 0.4
+Name:        mcl
+Version:     0.1
+Synopsis:    Modeling Core Language based on OCaml
+Authors:     Christoph Höger <christoph.hoeger@tu-berlin.de>
+License:     BSD-3-clause
+Plugins:     META (0.4), StdFiles (0.4), DevFiles (0.4)
+
+# for corebuild compatibility:
+AlphaFeatures:           ocamlbuild_more_args
+XOCamlbuildExtraArgs:    -j 4 -verbose 0 -tag thread -tag debug -tag annot -tag bin_annot -tag short_paths -classic-display 
+
+Library mcllib
+  Path:       src
+  CompiledObject: best
+  BuildTools: ocamlbuild
+  Modules:    Mcl, Mcl_lexer, Mcl_parser, Mcl_gen_parser, Mcl_dynamics, Mcl_pp
+  BuildDepends: bigarray, batteries, menhirLib, sedlex
+
+Executable "mcl_tests"
+  Path: test
+  MainIs: mcl_tests.ml
+  BuildTools: ocamlbuild
+  Build$: flag(tests)
+  CompiledObject: best
+  Install: false
+  BuildDepends: mcllib, oUnit
+
+Test "unit_tests"
+  TestTools: mcl_tests
+  Command: $mcl_tests
+  WorkingDirectory: test

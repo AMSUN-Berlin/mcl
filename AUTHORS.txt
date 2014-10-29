@@ -1,0 +1,8 @@
+(* OASIS_START *)
+(* DO NOT EDIT (digest: 0ce3bfccb190fc70e8bb4fdd30002c28) *)
+
+Authors of mcl:
+
+* Christoph Höger <christoph.hoeger@tu-berlin.de>
+
+(* OASIS_STOP *)
