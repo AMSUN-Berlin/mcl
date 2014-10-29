@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 7915fd45fc1155ba8a64c7b7fffb187b)
+version = "0.1"
+description = "Modeling Core Language based on OCaml"
+requires = "bigarray batteries menhirLib sedlex"
+archive(byte) = "mcllib.cma"
+archive(byte, plugin) = "mcllib.cma"
+archive(native) = "mcllib.cmxa"
+archive(native, plugin) = "mcllib.cmxs"
+exists_if = "mcllib.cma"
+# OASIS_STOP
+
