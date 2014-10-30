@@ -27,14 +27,40 @@
  *)
 
 open OUnit
-		  
-let suite = "MCL" >:::
-	      [
-		Lexer_tests.suite ;
-		Parser_tests.suite ; 
-		Eval_tests.subst_suite ;
-		Eval_tests.suite
-	      ]
-		
-let _ =
-  run_test_tt_main suite
+open Mcl_parser
+open Mcl
+open Mcl_lexer
+open Mcl_pp
+
+let rec parse ucs = 
+  let next () = next_token ucs in    
+  expr_parser "test" next
+
+let test_parsing (ucs, expected) = assert_equal ~msg:"equality" ~printer:expr2str expected (parse ucs)
+
+let samples = [ 
+  (" 1.234", Const(Float(1.234)));
+  ("x", Var("x")) ;
+  ("λx.x", Abs("x", Var("x"))) ;
+  ("let v = ⟦1⟧ in v[0]", Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
+  ("x x", App(Var("x"), Var("x"))) ;
+  ("3 > 4", App(App(Const(Prim("(>)", [])), Const(Int(3))), Const(Int(4))));
+  ("3 * 4", App(App(Const(Prim("( * )", [])), Const(Int(3))), Const(Int(4))));
+  ("⟪ Foo ⟫", Const(Prim(" Foo ", []))) ;
+  ("⟪(+)⟫ 40 2", App(App(Const(Prim("(+)", [])), Const(Int(40))), Const(Int(2))));
+  (" 1234", Const(Int(1234)));
+  (" 1.234", Const(Float(1.234)));
+  ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));
+  ("let x = λx.x in x", Let("x", Abs("x", Var("x")), Var("x")));
+  ("let rec x = λx.x in x", Letrec("x", Abs("x", Var("x")), Var("x")));
+  ("let f = ⟪(+)⟫ 40 in f 2", Let("f", App(Const(Prim("(+)", [])), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+]
+
+let test_case (input, expected) =
+  let teardown _ = () in
+  let setup () = (state_from_utf8_string input, expected)
+  in
+  (Printf.sprintf "test parsing '%s'" input) >:: (bracket setup test_parsing teardown)
+						  
+let suite = "Parser" >:::
+	      ( List.map test_case samples )
