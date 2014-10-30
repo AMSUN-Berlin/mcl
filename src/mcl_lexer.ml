@@ -104,7 +104,7 @@ let state_from_utf8_string input = {
   src = "test input" ; 
   m_cursor = { m_line = 0; m_bol = 0 } }
 
-let next_token { src ; buf ; m_cursor } =
+let next_token ( { src ; buf ; m_cursor } as ls ) =
   let lift token = { token ; src ; size = lexeme_length buf; cursor = 
 							       { line = m_cursor.m_line ; 
 								 bol = m_cursor.m_bol ; 
@@ -114,6 +114,68 @@ let next_token { src ; buf ; m_cursor } =
 
   let current _ = Utf8.lexeme buf in
 
-  match%sedlex buf with
-  | number -> lift ( INT ( int_of_string (current () ) ))
+  let ident buf =
+    match%sedlex buf with
+    | id_start, Star ( id_continue ) -> IDENT (Sedlexing.Utf8.lexeme buf)
     | _ -> failwith "Unexpected character"
+  in
+
+  let rec token () =
+    match%sedlex buf with
+    | '(' ->  LPAREN 
+    | ')' ->  RPAREN
+    | '=' ->  EQ
+    | '+' ->  PLUS
+    | '*' ->  TIMES
+    | '/' ->  DIV
+    | '-' ->  MINUS
+    | '>' ->  GT
+    | '<' ->  LT
+    | ">=" -> GEQ
+    | "<=" -> LEQ
+    | "<>" -> NEQ
+    | number, '.', Opt( number ), Opt ( 'e', number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
+    | '.' ->  ( DOT )
+    | number ->  ( INT ( int_of_string (current () ) ))
+    | Plus ( white_space ) -> token ()
+    | eof ->  ( EOF )
+    | "let" ->  ( LET )
+    | "in" ->  ( IN )
+    | "rec" ->  ( REC )
+    | "get" ->  GET
+    | "put" ->  PUT
+    | 0x03BB ->  ( LAMBDA ) 
+    | 0x005B ->  LBRACKET 
+    | 0x005D ->  RBRACKET
+    | 0x27E6 ->  LDBRACKET
+    | 0x27E7 ->  RDBRACKET
+
+    | 0x27E8 ->  LANGLE
+    | 0x27E9 ->  RANGLE
+
+    | 8226 ->  BULLET
+    | 8592 ->  LEFTARROW
+
+    | 0x27EA, Star ( Compl (0x27EB) ) , 0x27EB -> 
+       HOST (Sedlexing.Utf8.sub_lexeme buf 1 ((lexeme_length buf) - 2))
+
+    | 0x27E8 -> LANGLE
+    | 0x27E9 -> RANGLE
+
+    | "(*" -> terminate_comment 0
+
+    | _ -> Sedlexing.rollback buf ; ident buf
+
+					  
+  and terminate_comment n = 
+    match %sedlex buf with
+    | "*)" -> (match n with 
+	       | 0 -> token ()
+	       | _ -> terminate_comment (n-1) 
+	      )
+    | "(*" -> terminate_comment (n+1)
+    | eof -> failwith "Unterminated comment" 
+    | any -> terminate_comment n
+    | _ -> failwith "no match on 'any'. This cannot happen"
+
+  in lift (token ())
