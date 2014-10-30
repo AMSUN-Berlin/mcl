@@ -139,6 +139,9 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | number ->  ( INT ( int_of_string (current () ) ))
     | Plus ( white_space ) -> token ()
     | eof ->  ( EOF )
+    | "if" -> IF
+    | "then" -> THEN
+    | "else" -> ELSE
     | "let" ->  ( LET )
     | "in" ->  ( IN )
     | "rec" ->  ( REC )
