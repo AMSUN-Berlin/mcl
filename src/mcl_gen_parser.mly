@@ -47,6 +47,17 @@
 
 %{
   open Mcl
+  open Parsetree
+
+  let lift_ident x =
+    let loc = {
+      Location.loc_start = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}; 
+      loc_end = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 1} ; 
+      loc_ghost = false} in    
+    
+    { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc ; } ; 		
+      pexp_loc = loc;
+      pexp_attributes = [] }
 %}
 
 %start <Mcl.expr> main
@@ -65,29 +76,30 @@ expr:
     { e }
 | e1 = expr e2 = expr { App(e1, e2) } %prec app_prec
 | e1 = expr PLUS e2 = expr
-    { App(App(Const(Prim("(+)", [])), e1), e2) }
+    { App(App((Host(lift_ident "+")), e1), e2) }
 | e1 = expr MINUS e2 = expr
-    { App(App(Const(Prim("(-)", [])), e1), e2) }
+    { App(App((Host(lift_ident "-")), e1), e2) }
 | e1 = expr TIMES e2 = expr
-    { App(App(Const(Prim("( * )", [])), e1), e2) }
+    { App(App((Host(lift_ident "*")), e1), e2) }
 | e1 = expr DIV e2 = expr
-    { App(App(Const(Prim("(/)", [])), e1), e2) }
+    { App(App((Host(lift_ident "/")), e1), e2) }
 
 | e1 = expr GT e2 = expr
-    { App(App(Const(Prim("(>)", [])), e1), e2) }
+    { App(App((Host(lift_ident ">")), e1), e2) }
 | e1 = expr LT e2 = expr
-    { App(App(Const(Prim("(<)", [])), e1), e2) }
+    { App(App((Host(lift_ident "<")), e1), e2) }
 | e1 = expr GEQ e2 = expr
-    { App(App(Const(Prim("(>=)", [])), e1), e2) }
+    { App(App((Host(lift_ident ">=")), e1), e2) }
 | e1 = expr LEQ e2 = expr
-    { App(App(Const(Prim("(<=)", [])), e1), e2) }
+    { App(App((Host(lift_ident "<=")), e1), e2) }
 | e1 = expr NEQ e2 = expr
-    { App(App(Const(Prim("(<>)", [])), e1), e2) }
+    { App(App((Host(lift_ident "<>")), e1), e2) }
 
 
 
 | MINUS e = expr %prec UMINUS
-    { App(Const(Prim("~-", [])), e) }
+    { App((Host(lift_ident "~-")), e) }
+
 | LET x = IDENT EQ e1 = expr IN e2 = expr 
     { Let(x,e1,e2) }
 | LET REC x = IDENT EQ e1 = expr IN e2 = expr
@@ -110,5 +122,5 @@ expr:
     { Bind(x, e, e2) }
 | RETURN e = expr 
     { Return(e) }
-| h = HOST { Const(Prim(h, [])) }
+| h = HOST { Host ( Parse.expression (Lexing.from_string h)) }
 

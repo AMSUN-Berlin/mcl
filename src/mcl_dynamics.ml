@@ -29,6 +29,54 @@
 open Mcl
 open Mcl_pp
 open Batteries
+open Format
+open Outcometree
+
+type value = VConst of const
+	   | VAbs of string * expr
+	   | VAdt of string * (value list)
+	   | VMonad of monad
+	   | VVec of value array
+	   | VHost of out_value * string
+
+and monad = MGet of string 
+	   | MPut of string * value
+	   | MReturn of value 
+	   | MChain of string * monad * expr
+
+let unit_val = VVec([||])
+
+let rec pp_val fmt = function 
+  | VHost(v,_) -> fprintf fmt "⟪%a⟫" (!Oprint.out_value) v
+  | VConst c -> fprintf fmt "@[%a@]" pp_const c
+  | VAbs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
+  | VMonad(m) -> pp_monad fmt m
+  | VVec(vs) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_val) (Array.to_list vs)
+  | VAdt(a, vs) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_val) vs
+
+and pp_monad fmt = function
+  | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
+  | MPut (l, v) -> fprintf fmt "@[%s•put@ %a@]" l pp_val v
+  | MGet (l) -> fprintf fmt "@[%s•get@]" l
+  | MChain (x, m, e) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_monad m pp_expr e
+
+let val2str v = 
+  (pp_val Format.str_formatter v) ;
+  Format.flush_str_formatter ()
+
+
+let rec lift_monad = function 
+  | MGet s -> Get s 
+  | MReturn v -> Return (lift_value v) 
+  | MPut(s,v) -> Put(s, lift_value v) | MChain(x, m, e) -> Bind(x, lift_monad m, e)
+		
+and lift_value = function
+  | VConst c   -> Const c 
+  | VAbs (x,e) -> Abs(x,e)
+  | VVec vs -> Vec (Array.map lift_value vs)
+  | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
+  | VMonad (m) -> lift_monad m 
+
     
 let error_expected op exp got =
   VConst( Err ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) )
@@ -80,6 +128,7 @@ and eval_array es vs i = if i < (Array.length es) then
 			   VVec(vs)
 
 and eval = function
+   
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
 
@@ -92,8 +141,9 @@ and eval = function
 
   | App(e1, e2) as app -> begin match eval e1 with 			   
 				| VConst(Err msg) as err -> err
-				| VAbs(y, e3) -> eval ( subst y ( eval e2 ) e3 )
+				| VAbs(y, e3) -> eval ( subst y ( lift_value (eval e2) ) e3 )
 
+						      (*
 				(* int/poly operator application on int, first argument *)
 				| VConst(Prim(op, [])) when StrSet.mem op int_bin_ops -> 
 				   begin match eval e2 with
@@ -119,15 +169,15 @@ and eval = function
 				   end
 
 				| VConst(Prim(op, _)) -> VConst(Err(Printf.sprintf "Unknown primitive operation '%s'" op))
-
+						       *)
 				| _ as v -> error_expected (expr2str app) "function value" (val2str v) 
 			  end
 
-  | Let(x, e1, e2) -> pass_error e1 (fun v -> eval ( subst x v e2 ))
+  | Let(x, e1, e2) -> pass_error e1 (fun v -> eval ( subst x (lift_value v) e2 ))
 
   | Letrec(x,e1,e2) -> begin match  eval e1 with 
-			       VAbs(y, e3) -> let v = VAbs(y, Letrec(x,e1,e3)) in
-					      eval ( subst x v e2 )
+			       VAbs(y, e3) -> let r = Abs(y, Letrec(x,e1,e3)) in
+					      eval ( subst x r e2 )
 			     | _ -> VConst ( Err (Printf.sprintf "'%s' is not a function" x))
 		       end
 
@@ -172,7 +222,7 @@ let rec elab s = function
   | MChain(x, m, e) -> 
      let (s', v) = elab s m in 
      begin
-       match eval (subst x v e) with
+       match eval (subst x (lift_value v) e) with
        | VConst(Err msg) -> (s, VConst(Err msg))
        | VMonad(m') -> elab s' m'
        | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))

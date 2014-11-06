@@ -56,7 +56,7 @@ let test_case (input, expected) =
   in
   (Printf.sprintf "test evaluating '%s'" input) >:: (bracket setup test_eval teardown)
 
-let test_subst (i,x,s,ex) = assert_equal ~msg:"equality" ~printer:expr2str ex (subst x s i)
+let test_subst (i,x,s,ex) = assert_equal ~msg:"equality" ~printer:expr2str ex (subst x (lift_value s) i)
 
 let subst_samples = [
   (App(Var("f"), Var("x")), "f", VAbs("x", Var("x")), App(Abs("x", Var("x")), Var("x")));

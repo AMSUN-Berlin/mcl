@@ -37,14 +37,13 @@ let rec pp_list ?(sep="") pp_element fmt = function
   | [] -> ()
 
 let rec pp_const fmt = function
-  | Prim(p,[]) -> fprintf fmt "⟪%s⟫" p
-  | Prim(p,args) -> fprintf fmt "(⟪%s⟫ %a)" p (pp_list ~sep:" " pp_val) args
   | Float f -> pp_print_float fmt f
   | Int i -> pp_print_int fmt i
   | Bool b -> pp_print_bool fmt b
   | Err msg -> fprintf fmt "error: '%s'" msg 
 
 and pp_expr fmt = function
+  | Host e -> fprintf fmt "⟪@[%a@]⟫" Pprintast.expression e
   | Var x -> fprintf fmt "@[%s@]" x
   | Abs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
   | App(e1, e2) -> fprintf fmt "@[(%a@ %a)@]" pp_expr e1 pp_expr e2
@@ -65,23 +64,8 @@ and pp_expr fmt = function
 and pp_pat fmt ((a, xs), e) = 
   fprintf fmt "@[|@ [@%s⟨%a⟩@]@ →@ %a@]" a (pp_list pp_print_string) xs pp_expr e
 
-and pp_val fmt = function 
-  | VConst c -> fprintf fmt "@[%a@]" pp_const c
-  | VAbs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
-  | VMonad(m) -> pp_monad fmt m
-  | VVec(vs) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_val) (Array.to_list vs)
-  | VAdt(a, vs) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_val) vs
-
-and pp_monad fmt = function
-  | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
-  | MPut (l, v) -> fprintf fmt "@[%s•put@ %a@]" l pp_val v
-  | MGet (l) -> fprintf fmt "@[%s•get@]" l
-  | MChain (x, m, e) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_monad m pp_expr e
 
 let expr2str e = 
   (pp_expr Format.str_formatter e) ;
   Format.flush_str_formatter ()
 
-let val2str v = 
-  (pp_val Format.str_formatter v) ;
-  Format.flush_str_formatter ()

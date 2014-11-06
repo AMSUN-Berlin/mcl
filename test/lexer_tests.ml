@@ -68,6 +68,7 @@ let samples = [
   ("let rec x = λx.x in x", [LET; REC; IDENT "x"; EQ; LAMBDA; IDENT "x"; DOT ; IDENT "x"; IN ; IDENT "x"]); 
   ("if then else", [IF; THEN; ELSE]);
   ("⟦a⟧", [LDBRACKET; IDENT "a"; RDBRACKET]);
+  ("⟪+⟫", [HOST "+"]);
   ("⟪(*ocaml comment inside constant*)⟫", [HOST "(*ocaml comment inside constant*)"]) ;
   ("⟪(*ocaml comment inside constant*)⟫⟪⟫", [HOST "(*ocaml comment inside constant*)"; HOST "" ]) ;
   ("foo•put", [IDENT "foo" ; BULLET ; PUT ] ) ;

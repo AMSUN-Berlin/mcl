@@ -31,12 +31,28 @@ open Mcl_parser
 open Mcl
 open Mcl_lexer
 open Mcl_pp
+open Parsetree
 
 let rec parse ucs = 
   let next () = next_token ucs in    
   expr_parser "test" next
 
-let test_parsing (ucs, expected) = assert_equal ~msg:"equality" ~printer:expr2str expected (parse ucs)
+(* ignore locations for comparison *)
+let rec compare_exp e1 = function
+  | Host(c) -> (expr2str e1) = expr2str (Host c)
+  | _ as e2 -> e1 = e2
+
+let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str expected (parse ucs)
+
+let lift_ident x =
+  let loc = {
+    Location.loc_start = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}; 
+    loc_end = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 1} ; 
+    loc_ghost = false} in    
+    
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc ; } ; 		
+    pexp_loc = loc;
+    pexp_attributes = [] }
 
 let samples = [ 
   (" 1.234", Const(Float(1.234)));
@@ -44,16 +60,16 @@ let samples = [
   ("λx.x", Abs("x", Var("x"))) ;
   ("let v = ⟦1⟧ in v[0]", Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
   ("x x", App(Var("x"), Var("x"))) ;
-  ("3 > 4", App(App(Const(Prim("(>)", [])), Const(Int(3))), Const(Int(4))));
-  ("3 * 4", App(App(Const(Prim("( * )", [])), Const(Int(3))), Const(Int(4))));
-  ("⟪ Foo ⟫", Const(Prim(" Foo ", []))) ;
-  ("⟪(+)⟫ 40 2", App(App(Const(Prim("(+)", [])), Const(Int(40))), Const(Int(2))));
+  ("3 > 4", App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
+  ("3 * 4", App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
+  ("⟪ Foo ⟫", Host(lift_ident "Foo")) ;
+  ("⟪+⟫ 40 2", App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2))));
   (" 1234", Const(Int(1234)));
   (" 1.234", Const(Float(1.234)));
   ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));
   ("let x = λx.x in x", Let("x", Abs("x", Var("x")), Var("x")));
   ("let rec x = λx.x in x", Letrec("x", Abs("x", Var("x")), Var("x")));
-  ("let f = ⟪(+)⟫ 40 in f 2", Let("f", App(Const(Prim("(+)", [])), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+  ("let f = ⟪+⟫ 40 in f 2", Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
 ]
 
 let test_case (input, expected) =

@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: eda45a7dea8defde047594b7d99f850f) *)
+(* DO NOT EDIT (digest: 90885540bc96d04c74c75b6ef28c68e2) *)
 
 This is the INSTALL file for the mcl distribution.
 
@@ -16,6 +16,7 @@ In order to compile this package, you will need:
 * batteries for library mcllib
 * menhirLib for library mcllib
 * sedlex for library mcllib
+* compiler-libs for library mcllib
 * oUnit for executable mcl_tests
 
 Installing

@@ -31,27 +31,17 @@ open Map
 
 type patt = string * (string list)
 
-type monad = MGet of string 
-	     | MPut of string * value
-	     | MReturn of value 
-	     | MChain of string * monad * expr
-
-and const = Prim of string * value list
-	   | Float of float
-	   | Int of int
-	   | Err of string
-	   | Bool of bool
-
-and value = VConst of const
-	  | VAbs of string * expr
-	  | VAdt of string * (value list)
-	  | VMonad of monad
-	  | VVec of value array
+type const = 
+	  | Float of float
+	  | Int of int
+	  | Err of string
+	  | Bool of bool
 
 and expr = Var of string 
 	 | Abs of string * expr
 	 | App of expr * expr
 	 | Const of const
+	 | Host of Parsetree.expression
 	 | Let of string * expr * expr
 	 | Letrec of string * expr * expr
 	 | Cond of expr * expr * expr
@@ -62,22 +52,8 @@ and expr = Var of string
 	 | Adt of string * (expr list)
 	 | Get of string | Put of string * expr | Return of expr | Bind of string * expr * expr
 
-let unit_val = VVec([||])
-
-let rec lift_monad = function 
-  | MGet s -> Get s 
-  | MReturn v -> Return (lift_value v) 
-  | MPut(s,v) -> Put(s, lift_value v) | MChain(x, m, e) -> Bind(x, lift_monad m, e)
-		
-and lift_value = function
-  | VConst c   -> Const c 
-  | VAbs (x,e) -> Abs(x,e)
-  | VVec vs -> Vec (Array.map lift_value vs)
-  | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
-  | VMonad (m) -> lift_monad m 
-
 let rec subst x v = function
-  | Var y when x = y -> lift_value v
+  | Var y when x = y -> v
   | Var y -> Var y
   | Abs(y,e) when x = y -> Abs(y, e)
   | Abs(y,e) -> Abs(y, subst x v e)
@@ -98,6 +74,7 @@ let rec subst x v = function
   | Bind(y, e1, e2) when x = y -> Bind(y, e1, e2)
   | Bind(y, e1, e2) -> Bind(y, subst x v e1, subst x v e2)
   | Adt(a, es) -> Adt(a, List.map (subst x v) es)
+  | Host e -> Host e
 
 and pat_subst x v ((const, vars), e) = 
   if (List.mem x vars) then 
