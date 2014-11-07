@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 0c1a956b945e4e6db2bb41483d621ee7)
+# DO NOT EDIT (digest: 32102b976a9a6515b8a6a3278576fe0a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -20,6 +20,8 @@ true: annot, bin_annot
 <src/*.ml{,i,y}>: pkg_bigarray
 <src/*.ml{,i,y}>: pkg_compiler-libs.bytecomp
 <src/*.ml{,i,y}>: pkg_compiler-libs.common
+<src/*.ml{,i,y}>: pkg_compiler-libs.optcomp
+<src/*.ml{,i,y}>: pkg_dynlink
 <src/*.ml{,i,y}>: pkg_menhirLib
 <src/*.ml{,i,y}>: pkg_sedlex
 # Executable mcl_tests
@@ -27,6 +29,8 @@ true: annot, bin_annot
 <test/mcl_tests.{native,byte}>: pkg_bigarray
 <test/mcl_tests.{native,byte}>: pkg_compiler-libs.bytecomp
 <test/mcl_tests.{native,byte}>: pkg_compiler-libs.common
+<test/mcl_tests.{native,byte}>: pkg_compiler-libs.optcomp
+<test/mcl_tests.{native,byte}>: pkg_dynlink
 <test/mcl_tests.{native,byte}>: pkg_menhirLib
 <test/mcl_tests.{native,byte}>: pkg_oUnit
 <test/mcl_tests.{native,byte}>: pkg_sedlex
@@ -35,6 +39,8 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: pkg_bigarray
 <test/*.ml{,i,y}>: pkg_compiler-libs.bytecomp
 <test/*.ml{,i,y}>: pkg_compiler-libs.common
+<test/*.ml{,i,y}>: pkg_compiler-libs.optcomp
+<test/*.ml{,i,y}>: pkg_dynlink
 <test/*.ml{,i,y}>: pkg_menhirLib
 <test/*.ml{,i,y}>: pkg_oUnit
 <test/*.ml{,i,y}>: pkg_sedlex

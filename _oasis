@@ -8,14 +8,14 @@ Plugins:     META (0.4), StdFiles (0.4), DevFiles (0.4)
 
 # for corebuild compatibility:
 AlphaFeatures:           ocamlbuild_more_args
-XOCamlbuildExtraArgs:    -j 4 -verbose 0 -tag thread -tag debug -tag annot -tag bin_annot -tag short_paths -classic-display 
+XOCamlbuildExtraArgs:    -j 4 -verbose 0 -tag thread -tag debug -tag annot -tag bin_annot -tag short_paths -classic-display
 
 Library mcllib
   Path:       src
   CompiledObject: best
   BuildTools: ocamlbuild
-  Modules:    Mcl, Mcl_lexer, Mcl_parser, Mcl_gen_parser, Mcl_dynamics, Mcl_pp, Ocaml_genprintval, Ocaml_toploop
-  BuildDepends: bigarray, batteries, menhirLib, sedlex, compiler-libs.common, compiler-libs.bytecomp
+  Modules:    Mcl, Mcl_lexer, Mcl_parser, Mcl_gen_parser, Mcl_dynamics, Mcl_pp, Ocaml_genprintval, Ocaml_toploop, Ocaml_opttoploop
+  BuildDepends: bigarray, batteries, menhirLib, sedlex, compiler-libs.common, compiler-libs.bytecomp, compiler-libs.optcomp, dynlink
 
 Executable "mcl_tests"
   Path: test

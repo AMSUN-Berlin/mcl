@@ -76,47 +76,16 @@ and lift_value = function
   | VVec vs -> Vec (Array.map lift_value vs)
   | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
   | VMonad (m) -> lift_monad m 
-
-    
+        
 let error_expected op exp got =
   VConst( Err ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) )
 
 module StrMap = Map.Make(String)
 module StrSet = Set.Make(String)
 
-let bool_poly_bin_ops = StrSet.of_enum (List.enum [
-					    "(>)" ;
-					    "(<)";
-					    "(>=)";
-					    "(<=)";
-					    "(!=)";
-					    "(=)" ;
-					    "(<>)";
-				     ])
+let ocaml_interpreter = ref None
 
-let bool_poly_op_apply a b = function
-  | "(>)" -> a > b
-  | "(<)" -> a < b
-  | "(>=)" -> a >= b
-  | "(<=)" -> a <= b
-  | "(<>)" -> a <> b
-  | "(!=)" -> a != b
-  | "(=)" -> a = b
-
-let int_bin_op_apply a b = function
-  | "(+)" -> a + b
-  | "(-)" -> a - b
-  | "(/)" -> a / b
-  | "( * )" -> a * b
-
-let int_int_bin_ops = StrSet.of_enum (List.enum [
-					  "(+)" ;
-					  "(-)" ;
-					  "( * )" ;
-					  "(/)" ;
-				     ])
-
-let int_bin_ops = StrSet.union int_int_bin_ops bool_poly_bin_ops
+let rec ident x = {Asttypes.txt = Longident.Lident x ; loc = Location.none}
 
 let rec pass_error e f = match eval e with
   | VConst(Err msg) as err -> err
@@ -132,6 +101,16 @@ and eval = function
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
 
+  | Host ( h ) -> begin match !ocaml_interpreter with 
+			  Some(eval) -> 
+			  begin 
+			    match eval h with
+			      Ok(x,v) -> VHost ( v, x )
+			    | Bad(err) -> VConst(Err(err))
+			  end
+			| None -> VConst(Err("No working OCaml interpreter loaded."))
+		  end
+
   | Cond(i,t,e) -> begin match eval i with
 			 | VConst(Err(_)) as err -> err
 			 | VConst(Bool(true)) -> eval t
@@ -142,34 +121,13 @@ and eval = function
   | App(e1, e2) as app -> begin match eval e1 with 			   
 				| VConst(Err msg) as err -> err
 				| VAbs(y, e3) -> eval ( subst y ( lift_value (eval e2) ) e3 )
-
-						      (*
-				(* int/poly operator application on int, first argument *)
-				| VConst(Prim(op, [])) when StrSet.mem op int_bin_ops -> 
-				   begin match eval e2 with
-					 | VConst(Int(a)) -> VConst(Prim(op, [VConst(Int(a))]))
-					 | VConst(Err msg) as err -> err
-					 | _ as v -> error_expected (expr2str app) "int-argument" (val2str v)
-				   end
-
-				(* int operator application, second argument *)
-				| VConst(Prim(op, [VConst(Int(a))])) when StrSet.mem op int_int_bin_ops -> 
-				   begin match eval e2 with
-					 | VConst(Int(b)) -> VConst(Int(int_bin_op_apply a b op))					    
-					 | VConst(Err msg) as err -> err
-					 | _ as v-> error_expected (expr2str app) "int-argument" (val2str v) 
-				   end
-
-				(* poly operator application on int, second argument *)
-				| VConst(Prim(op, [VConst(Int(a))])) when StrSet.mem op bool_poly_bin_ops -> 
-				   begin match eval e2 with
-					 | VConst(Int(b)) -> VConst(Bool(bool_poly_op_apply a b op))					    
-					 | VConst(Err msg) as err -> err
-					 | _ as v-> error_expected (expr2str app) "int-argument" (val2str v) 
-				   end
-
-				| VConst(Prim(op, _)) -> VConst(Err(Printf.sprintf "Unknown primitive operation '%s'" op))
-						       *)
+				| VHost(_,x) -> begin match eval e2 with 
+						      | VConst (Err e) -> VConst (Err e)
+						      | VConst (Bool b) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.ident (ident (string_of_bool b)))]))
+						      | VConst (Float f) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_float (string_of_float f)))]))
+						      | VConst (Int i) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_int i))]))
+						      | _ -> VConst(Err("Currently, only literal arguments are supported to OCaml expressions"))
+						end
 				| _ as v -> error_expected (expr2str app) "function value" (val2str v) 
 			  end
 
@@ -227,3 +185,48 @@ let rec elab s = function
        | VMonad(m') -> elab s' m'
        | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
      end
+
+exception InterpreterError
+
+open Parsetree
+
+let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
+							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;
+									  ppat_loc = Location.none ;
+									  ppat_attributes = [] ; 
+									 } ;
+							       pvb_expr = e ;
+							       pvb_attributes = [];
+							       pvb_loc = Location.none ;								     
+							   }] ) ; 
+				    pstr_loc = Location.none }]
+
+open BatResult
+open Ocaml_common
+
+let fresh_var_counter = ref 0 
+
+let eval_and_store_expr execute_phrase e = 
+  let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
+  let {success;result} = execute_phrase true Format.str_formatter (lift_to_phrase x e) in
+  let output = Format.flush_str_formatter () in
+
+  if success then
+    match result with
+    | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
+    | Ophr_eval(v,_) -> Ok (x, v)
+    | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
+    | _ -> Bad output
+  else
+    Bad output
+
+let _ = 
+  fresh_var_counter := 0 ;  
+  try 
+    Ocaml_toploop.initialize_toplevel_env () ;
+    ocaml_interpreter := Some (eval_and_store_expr Ocaml_toploop.execute_phrase)
+  with
+  (* bytecode interpreter unable to load, try native code interpreter *)
+  | Invalid_argument _ -> 
+     Ocaml_opttoploop.initialize_toplevel_env () ;
+     ocaml_interpreter := Some (eval_and_store_expr Ocaml_opttoploop.execute_phrase)
