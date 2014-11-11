@@ -64,6 +64,7 @@ let val2str v =
   (pp_val Format.str_formatter v) ;
   Format.flush_str_formatter ()
 
+let ident x = {Asttypes.txt = Longident.Lident x ; loc = Location.none}
 
 let rec lift_monad = function 
   | MGet s -> Get s 
@@ -76,6 +77,7 @@ and lift_value = function
   | VVec vs -> Vec (Array.map lift_value vs)
   | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
   | VMonad (m) -> lift_monad m 
+  | VHost (_, x) -> Host (Ast_helper.Exp.ident  (ident x))
         
 let error_expected op exp got =
   VConst( Err ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) )
@@ -84,8 +86,6 @@ module StrMap = Map.Make(String)
 module StrSet = Set.Make(String)
 
 let ocaml_interpreter = ref None
-
-let rec ident x = {Asttypes.txt = Longident.Lident x ; loc = Location.none}
 
 let rec pass_error e f = match eval e with
   | VConst(Err msg) as err -> err
