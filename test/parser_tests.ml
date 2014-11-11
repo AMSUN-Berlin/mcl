@@ -63,13 +63,13 @@ let samples = [
   ("3 > 4", App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
   ("3 * 4", App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
   ("⟪ Foo ⟫", Host(lift_ident "Foo")) ;
-  ("⟪+⟫ 40 2", App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2))));
+  ("⟪(+)⟫ 40 2", App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2))));
   (" 1234", Const(Int(1234)));
   (" 1.234", Const(Float(1.234)));
   ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));
   ("let x = λx.x in x", Let("x", Abs("x", Var("x")), Var("x")));
   ("let rec x = λx.x in x", Letrec("x", Abs("x", Var("x")), Var("x")));
-  ("let f = ⟪+⟫ 40 in f 2", Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+  ("let f = ⟪(+)⟫ 40 in f 2", Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
 ]
 
 let test_case (input, expected) =
