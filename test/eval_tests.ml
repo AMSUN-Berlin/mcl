@@ -42,10 +42,16 @@ let test_eval (ucs, expected) = assert_equal ~msg:"equality" ~printer:val2str ex
 let samples = [
   ("42", VConst(Int(42)) );
   ("42.", VConst(Float(42.)) );
-  ("⟪(+)⟫ 40 2", VConst(Int(42)) );
-  ("⟪(>)⟫ 40 2 ", VConst(Bool(true)) );
+  ("ℒ ⟪(+)⟫ 40 2", VConst(Int(42)) );
+  ("ℒ ⟪(>)⟫ 40 2 ", VConst(Bool(true)) );
   ("let v = ⟦1⟧ in v[0]", VConst(Int(1)));
-  ("let f = ⟪(+)⟫ 40 in f 2", VConst(Int(42)) );
+  ("let f = ⟪(+)⟫ 40 in ℒ (f 2)", VConst(Int(42)) );
+  ("-1", VConst(Int(-1)) );
+  ("ℒ ⟪(>)⟫ 0 2", VConst(Bool(false)));
+  ("ℒ ⟪(>)⟫ (-1) 2", VConst(Bool(false)));
+
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 1",  VConst(Int(1)));
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 2",  VConst(Int(2)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 3",  VConst(Int(6)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 6",  VConst(Int(720)));
 ]

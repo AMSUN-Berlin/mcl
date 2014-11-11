@@ -25,8 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *)
 
-(* let delimiter_strings = ["λ" ; "="; "⟪"; "⟫"; "."; ";"; "("; ")"; "["; "]" ; "←"; "•"; "⟦"; "⟧"; "⟨"; "⟩"] *)
-%token LAMBDA GT LT NEQ GEQ LEQ EQ LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
+%token LIFT LAMBDA GT LT NEQ GEQ LEQ EQ LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
 
 %token <int> INT
 %token <float> FLOAT
@@ -58,6 +57,9 @@
     { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc ; } ; 		
       pexp_loc = loc;
       pexp_attributes = [] }
+
+  let bin_op op e1 e2 = 
+    Client ( App(App((Host(lift_ident op)), e1), e2) )
 %}
 
 %start <Mcl.expr> main
@@ -76,29 +78,31 @@ expr:
     { e }
 | e1 = expr e2 = expr { App(e1, e2) } %prec app_prec
 | e1 = expr PLUS e2 = expr
-    { App(App((Host(lift_ident "+")), e1), e2) }
+    { bin_op "+" e1 e2 }
 | e1 = expr MINUS e2 = expr
-    { App(App((Host(lift_ident "-")), e1), e2) }
+    { bin_op "-" e1 e2 }
 | e1 = expr TIMES e2 = expr
-    { App(App((Host(lift_ident "*")), e1), e2) }
+    { bin_op "*" e1 e2 }
 | e1 = expr DIV e2 = expr
-    { App(App((Host(lift_ident "/")), e1), e2) }
+    { bin_op "/" e1 e2 }
 
 | e1 = expr GT e2 = expr
-    { App(App((Host(lift_ident ">")), e1), e2) }
+    { bin_op ">" e1 e2 }
 | e1 = expr LT e2 = expr
-    { App(App((Host(lift_ident "<")), e1), e2) }
+    { bin_op "<" e1 e2 }
 | e1 = expr GEQ e2 = expr
-    { App(App((Host(lift_ident ">=")), e1), e2) }
+    { bin_op ">=" e1 e2 }
 | e1 = expr LEQ e2 = expr
-    { App(App((Host(lift_ident "<=")), e1), e2) }
+    { bin_op "<=" e1 e2 }
 | e1 = expr NEQ e2 = expr
-    { App(App((Host(lift_ident "<>")), e1), e2) }
+    { bin_op "<>" e1 e2 }
 
 
+| LIFT e = expr %prec LIFT
+    { Client ( e ) }
 
 | MINUS e = expr %prec UMINUS
-    { App((Host(lift_ident "~-")), e) }
+    { Client ( App((Host(lift_ident "~-")), e) ) }
 
 | LET x = IDENT EQ e1 = expr IN e2 = expr 
     { Let(x,e1,e2) }

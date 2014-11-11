@@ -60,10 +60,14 @@ let samples = [
   ("λx.x", Abs("x", Var("x"))) ;
   ("let v = ⟦1⟧ in v[0]", Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
   ("x x", App(Var("x"), Var("x"))) ;
-  ("3 > 4", App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
-  ("3 * 4", App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
+  ("3 > 4", Client(App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4)))));
+  ("3 * 4", Client(App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4)))));
   ("⟪ Foo ⟫", Host(lift_ident "Foo")) ;
-  ("⟪(+)⟫ 40 2", App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2))));
+  ("ℒ x", Client(Var("x"))) ;  
+  ("-1", Client(App(Host(lift_ident "~-"), Const(Int(1)))));
+  ("⟪(>)⟫ (-1) 2", App(App(Host(lift_ident ">"), Client(App(Host(lift_ident "~-"), Const(Int(1))))), Const(Int(2)))) ;
+  ("ℒ ⟪ Foo ⟫", Client(Host(lift_ident "Foo"))) ;
+  ("⟪(+)⟫ 40 2", Client (App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2)))));
   (" 1234", Const(Int(1234)));
   (" 1.234", Const(Float(1.234)));
   ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));

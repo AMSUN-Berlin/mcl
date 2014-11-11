@@ -111,22 +111,33 @@ and eval = function
 			| None -> VConst(Err("No working OCaml interpreter loaded."))
 		  end
 
-  | Cond(i,t,e) -> begin match eval i with
-			 | VConst(Err(_)) as err -> err
-			 | VConst(Bool(true)) -> eval t
-			 | VConst(Bool(false)) -> eval e
-			 | _ as v -> error_expected (expr2str i) "boolean value" (val2str v)
-		   end
+  | Client e -> pass_error e (function
+			       | VHost (Oval_constr ( Oide_ident "true", [] ), _) -> VConst (Bool true )
+			       | VHost (Oval_constr ( Oide_ident "false", [] ), _) -> VConst (Bool false)
+			       | VHost (Oval_float f, x) -> VConst (Float f)
+			       | VHost (Oval_int i, x) -> VConst (Int i)
+			       | VHost (v, x) -> VHost(v, x)
+			       | v -> error_expected (expr2str e) "host langiage value" (val2str v)
+			     )
+
+  | Cond(i,t,e) -> 
+     begin match eval i with
+	   | VConst(Err(_)) as err -> err
+	   | VConst(Bool(true)) -> eval t
+	   | VConst(Bool(false)) -> eval e
+	   | v -> error_expected (expr2str i) "boolean value" (val2str v)
+     end
 
   | App(e1, e2) as app -> begin match eval e1 with 			   
 				| VConst(Err msg) as err -> err
 				| VAbs(y, e3) -> eval ( subst y ( lift_value (eval e2) ) e3 )
-				| VHost(_,x) -> begin match eval e2 with 
+				| VHost(_,x) as f -> begin match eval e2 with 
 						      | VConst (Err e) -> VConst (Err e)
 						      | VConst (Bool b) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.ident (ident (string_of_bool b)))]))
 						      | VConst (Float f) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_float (string_of_float f)))]))
-						      | VConst (Int i) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_int i))]))
-						      | _ -> VConst(Err("Currently, only literal arguments are supported to OCaml expressions"))
+						      | VConst (Int i) -> 
+							 eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_int i))]))
+						      | v -> VConst(Err(Printf.sprintf "Currently, only literal arguments are supported to OCaml expressions, got '%s'\n" (val2str v)))
 						end
 				| _ as v -> error_expected (expr2str app) "function value" (val2str v) 
 			  end
@@ -135,6 +146,7 @@ and eval = function
 
   | Letrec(x,e1,e2) -> begin match  eval e1 with 
 			       VAbs(y, e3) -> let r = Abs(y, Letrec(x,e1,e3)) in
+					      let e' = subst x r e2 in
 					      eval ( subst x r e2 )
 			     | _ -> VConst ( Err (Printf.sprintf "'%s' is not a function" x))
 		       end
@@ -208,17 +220,21 @@ let fresh_var_counter = ref 0
 
 let eval_and_store_expr execute_phrase e = 
   let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
-  let {success;result} = execute_phrase true Format.str_formatter (lift_to_phrase x e) in
-  let output = Format.flush_str_formatter () in
+  incr fresh_var_counter ;
+  try 
+    let {success;result} = execute_phrase true Format.str_formatter (lift_to_phrase x e) in
+    let output = Format.flush_str_formatter () in
 
-  if success then
-    match result with
-    | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
-    | Ophr_eval(v,_) -> Ok (x, v)
-    | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
-    | _ -> Bad output
-  else
-    Bad output
+    if success then
+      match result with
+      | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
+      | Ophr_eval(v,_) -> Ok (x, v)
+      | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
+      | _ -> Bad output
+    else
+      Bad output
+  with
+  | e -> Location.report_exception Format.std_formatter e ; raise e
 
 let _ = 
   fresh_var_counter := 0 ;  

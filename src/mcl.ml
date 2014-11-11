@@ -42,6 +42,7 @@ and expr = Var of string
 	 | App of expr * expr
 	 | Const of const
 	 | Host of Parsetree.expression
+	 | Client of expr
 	 | Let of string * expr * expr
 	 | Letrec of string * expr * expr
 	 | Cond of expr * expr * expr
@@ -75,6 +76,7 @@ let rec subst x v = function
   | Bind(y, e1, e2) -> Bind(y, subst x v e1, subst x v e2)
   | Adt(a, es) -> Adt(a, List.map (subst x v) es)
   | Host e -> Host e
+  | Client e -> Client (subst x v e)
 
 and pat_subst x v ((const, vars), e) = 
   if (List.mem x vars) then 
