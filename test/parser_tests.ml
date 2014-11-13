@@ -37,17 +37,35 @@ let rec parse ucs =
   let next () = next_token ucs in    
   expr_parser "test" next
 
-(* ignore locations for comparison *)
-let rec compare_exp e1 = function
-  | Host(c) -> (expr2str e1) = expr2str (Host c)
-  | _ as e2 -> e1 = e2
+let erase_locations_mapper = { Ast_mapper.default_mapper with 
+			       location = fun mapper l -> Location.none
+			     }
 
-let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str expected (parse ucs)
+let erase_location e = erase_locations_mapper.expr erase_locations_mapper e
+
+let rec erase_location = function
+  | Host(c) -> Host ( erase_locations_mapper.expr erase_locations_mapper c )
+  | Abs(x, e) -> Abs ( x, erase_location e)
+  | App(l, r) -> App ( erase_location l, erase_location r )
+  | Let(x, e, i) ->  Let ( x, erase_location e, erase_location i)
+  | Letrec(x, e, i) ->  Letrec ( x, erase_location e, erase_location i)
+  | Cond(c, t, e) ->  Cond (erase_location c, erase_location t, erase_location e)
+  | Idx(e, i) -> Idx(erase_location e, erase_location i)
+  | Vec(es) -> Vec ( Array.map erase_location es )
+  | Case(e, ps) -> Case(erase_location e, List.map (fun (p, e) -> (p, erase_location e)) ps)
+  | Put(l, e) -> Put(l, erase_location e)
+  | Return(e) -> Return (erase_location e)
+  | Bind(x, l, r) -> Bind(x, erase_location l, erase_location r)
+  | Adt(a, es) -> Adt(a, List.map erase_location es)
+  | Client e -> Client (erase_location e)
+  | _ as e -> e
+
+let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str (erase_location expected) (erase_location (parse ucs))
 
 let lift_ident x =
   let loc = {
     Location.loc_start = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}; 
-    loc_end = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 1} ; 
+    loc_end = {Lexing.pos_fname = ""; pos_lnum = 42; pos_bol = 0; pos_cnum = 1} ; 
     loc_ghost = false} in    
     
   { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc ; } ; 		
@@ -62,12 +80,12 @@ let samples = [
   ("x x", App(Var("x"), Var("x"))) ;
   ("3 > 4", Client(App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4)))));
   ("3 * 4", Client(App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4)))));
-  ("⟪ Foo ⟫", Host(lift_ident "Foo")) ;
+  ("⟪ foo ⟫", Host(lift_ident "foo")) ;
   ("ℒ x", Client(Var("x"))) ;  
   ("-1", Client(App(Host(lift_ident "~-"), Const(Int(1)))));
   ("⟪(>)⟫ (-1) 2", App(App(Host(lift_ident ">"), Client(App(Host(lift_ident "~-"), Const(Int(1))))), Const(Int(2)))) ;
-  ("ℒ ⟪ Foo ⟫", Client(Host(lift_ident "Foo"))) ;
-  ("⟪(+)⟫ 40 2", Client (App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2)))));
+  ("ℒ ⟪ foo ⟫", Client(Host(lift_ident "foo"))) ;
+  ("ℒ ⟪(+)⟫ 40 2", Client (App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2)))));
   (" 1234", Const(Int(1234)));
   (" 1.234", Const(Float(1.234)));
   ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));

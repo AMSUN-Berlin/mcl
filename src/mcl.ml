@@ -84,3 +84,22 @@ and pat_subst x v ((const, vars), e) =
   else
     ((const, vars), subst x v e)
 	      
+(* ignore locations for comparison *)
+let rec compare_exp e1 = function
+  | Host(c2) -> begin match e1 with Host(c1) -> c1 = c2 | _ -> false end
+  | Var x -> e1 = Var(x)
+  | Abs(x, e) -> begin match e1 with Abs(y, e') when x=y -> compare_exp e e' | _ -> false end
+  | App(l, r) -> begin match e1 with App(l', r') -> (compare_exp l l') && (compare_exp r r')  | _ -> false end
+  | Const c -> e1 = Const(c)
+  | Let(x, e, i) ->  begin match e1 with Let(y, e', i') when x=y -> (compare_exp e e') && (compare_exp i i') | _ -> false end
+  | Letrec(x, e, i) ->  begin match e1 with Letrec(y, e', i') when x=y -> (compare_exp e e') && (compare_exp i i') | _ -> false end
+  | Cond(c, t, e) ->  begin match e1 with Cond(c', t', e') -> (compare_exp c c') && (compare_exp t t') && (compare_exp e e') | _ -> false end
+  | Idx(e, i) -> begin match e1 with Idx(e', i') -> (compare_exp e e') && (compare_exp i i')  | _ -> false end
+  | Vec(es) -> begin match e1 with Vec(es') -> Enum.fold2 (fun e e' a -> a && (compare_exp e e')) true (Array.enum es) (Array.enum es') | _ -> false end
+  | Case(e, ps) -> begin match e1 with Case(e', ps') -> List.fold_left2 (fun a (p,e) (p',e') -> a && (p = p') && (compare_exp e e')) true ps ps' | _ -> false end 
+  | Get(l) -> e1 = Get(l)
+  | Put(l, e) -> begin match e1 with Put(l', e') when l = l' -> compare_exp e e' | _ -> false end 
+  | Return(e) -> begin match e1 with Return(e') -> compare_exp e e' | _ -> false end 
+  | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (compare_exp l l') && (compare_exp r r') | _ -> false end 
+  | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (compare_exp e e')) true es es' | _ -> false end
+  | Client e -> begin match e1 with Client e' -> compare_exp e e' | _ -> false end
