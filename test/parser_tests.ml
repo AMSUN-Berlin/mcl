@@ -62,15 +62,7 @@ let rec erase_location = function
 
 let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str (erase_location expected) (erase_location (parse ucs))
 
-let lift_ident x =
-  let loc = {
-    Location.loc_start = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}; 
-    loc_end = {Lexing.pos_fname = ""; pos_lnum = 42; pos_bol = 0; pos_cnum = 1} ; 
-    loc_ghost = false} in    
-    
-  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc ; } ; 		
-    pexp_loc = loc;
-    pexp_attributes = [] }
+let lift_ident = Mcl_ocaml.lift_ident
 
 let samples = [ 
   (" 1.234", Const(Float(1.234)));

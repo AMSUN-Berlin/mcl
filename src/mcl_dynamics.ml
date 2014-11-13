@@ -85,7 +85,7 @@ let error_expected op exp got =
 module StrMap = Map.Make(String)
 module StrSet = Set.Make(String)
 
-let ocaml_interpreter = ref None
+let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 
 let rec pass_error e f = match eval e with
   | VConst(Err msg) as err -> err
@@ -101,7 +101,7 @@ and eval = function
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
 
-  | Host ( h ) -> begin match !ocaml_interpreter with 
+  | Host ( h ) -> begin match ocaml_interpreter with 
 			  Some(eval) -> 
 			  begin 
 			    match eval h with
@@ -117,7 +117,7 @@ and eval = function
 			       | VHost (Oval_float f, x) -> VConst (Float f)
 			       | VHost (Oval_int i, x) -> VConst (Int i)
 			       | VHost (v, x) -> VHost(v, x)
-			       | v -> error_expected (expr2str e) "host langiage value" (val2str v)
+			       | v -> error_expected (expr2str e) "host language value" (val2str v)
 			     )
 
   | Cond(i,t,e) -> 
@@ -198,51 +198,11 @@ let rec elab s = function
        | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
      end
 
-exception InterpreterError
+open Outcometree
 
-open Parsetree
-
-let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
-							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;
-									  ppat_loc = Location.none ;
-									  ppat_attributes = [] ; 
-									 } ;
-							       pvb_expr = e ;
-							       pvb_attributes = [];
-							       pvb_loc = Location.none ;								     
-							   }] ) ; 
-				    pstr_loc = Location.none }]
-
-open BatResult
-open Ocaml_common
-
-let fresh_var_counter = ref 0 
-
-let eval_and_store_expr execute_phrase e = 
-  let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
-  incr fresh_var_counter ;
-  try 
-    let {success;result} = execute_phrase true Format.str_formatter (lift_to_phrase x e) in
-    let output = Format.flush_str_formatter () in
-
-    if success then
-      match result with
-      | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
-      | Ophr_eval(v,_) -> Ok (x, v)
-      | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
-      | _ -> Bad output
-    else
-      Bad output
-  with
-  | e -> Location.report_exception Format.std_formatter e ; raise e
-
-let _ = 
-  fresh_var_counter := 0 ;  
-  try 
-    Ocaml_toploop.initialize_toplevel_env () ;
-    ocaml_interpreter := Some (eval_and_store_expr Ocaml_toploop.execute_phrase)
-  with
-  (* bytecode interpreter unable to load, try native code interpreter *)
-  | Invalid_argument _ -> 
-     Ocaml_opttoploop.initialize_toplevel_env () ;
-     ocaml_interpreter := Some (eval_and_store_expr Ocaml_opttoploop.execute_phrase)
+let object_value = function
+  | Oval_constr ( Oide_ident "true", [] ) -> VConst (Bool true )
+  | Oval_constr ( Oide_ident "false", [] ) -> VConst (Bool false )
+  | Oval_float f -> VConst (Float f)
+  | Oval_int i -> VConst (Int i)
+  | _ -> VConst(Err("cannot translate OCaml non-literal back to mcl"))

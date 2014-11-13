@@ -26,16 +26,10 @@
  *
  *)
 
-open OUnit
-		  
-let suite = "MCL" >:::
-	      [
-		Lexer_tests.suite ;
-		Parser_tests.suite ; 
-		Eval_tests.subst_suite ;
-		Eval_tests.suite ;
-		Compiler_tests.suite 
-	      ]
-		
-let _ =
-  run_test_tt_main suite
+open Batteries
+
+val lift_ident : string -> Parsetree.expression
+
+val mclc : Mcl.expr -> Parsetree.expression
+
+val ocaml_interpreter : unit -> (Parsetree.expression -> ((string * Outcometree.out_value), string) Result.t) option
