@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *)
 
-%token LIFT LAMBDA GT LT NEQ GEQ LEQ EQ LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
+%token LAMBDA GT LT NEQ GEQ LEQ EQ LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
 
 %token <int> INT
 %token <float> FLOAT
@@ -59,7 +59,7 @@
       pexp_attributes = [] }
 
   let bin_op op e1 e2 = 
-    Client ( App(App((Host(lift_ident op)), e1), e2) )
+    App(App((Host(lift_ident op)), e1), e2)
 %}
 
 %start <Mcl.expr> main
@@ -98,11 +98,8 @@ expr:
     { bin_op "<>" e1 e2 }
 
 
-| LIFT e = expr %prec LIFT
-    { Client ( e ) }
-
 | MINUS e = expr %prec UMINUS
-    { Client ( App((Host(lift_ident "~-")), e) ) }
+    { App((Host(lift_ident "~-")), e) }
 
 | LET x = IDENT EQ e1 = expr IN e2 = expr 
     { Let(x,e1,e2) }

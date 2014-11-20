@@ -32,30 +32,34 @@ open Ast_helper
 open Parsetree
 open Location
 
+let lift_lid x = mknoloc (  Longident.Lident x )
+
 let lift_ident x =
-  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc = none ; } ; 		
+  { pexp_desc = Pexp_ident (lift_lid x) ; 		
     pexp_loc = none;
     pexp_attributes = [] }
 
-let lift_construct x =
-  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Lident x ; loc = none ; } ; 		
+let array_get = 
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "get") ; loc = none ; } ; 		
     pexp_loc = none;
     pexp_attributes = [] }
 
 open Exp
+
+let patc  = function 
+  | (c, []) -> Pat.construct (lift_lid c) None
+  | (c, xs) -> Pat.construct (lift_lid c) (Some (Pat.tuple (List.map (fun x -> Pat.var (mknoloc x)) xs)))
 
 let rec constc = function
   | Float f -> constant (Const_float (string_of_float f))
   | Int i -> constant (Const_int i)
   | Bool true -> lift_ident "true"
   | Bool false -> lift_ident "false"
-  | Err e -> apply (lift_ident "raise") ["", (apply (lift_construct "Invalid_Argument") ["", (constant (Const_string (e, None)))])]
-
+  | Err e -> apply (lift_ident "raise") ["", (apply (lift_ident "Invalid_Argument") ["", (constant (Const_string (e, None)))])]
 
 let rec mclc = function
   | Var x -> lift_ident x 
   | Host e -> e
-  | Client e -> mclc e
   | Abs(x, e) -> fun_ "" None (Pat.var (mknoloc x)) (mclc e)
   | App(l,r) -> apply (mclc l) [("", (mclc r))]
   | Let(x, e, i) -> let_ Nonrecursive [{ pvb_pat = Pat.var (mknoloc x) ; pvb_expr = mclc e ; pvb_attributes = [] ; pvb_loc = none }] (mclc i)
@@ -63,19 +67,25 @@ let rec mclc = function
 
   | Cond(c, t, e) -> ifthenelse (mclc c) (mclc t) (Some (mclc e))
   | Const c -> constc c
-			 (*
 
-  (* | New(e) -> fprintf fmt "@[(new@ %a)@]" pp_expr e  *)
-  | Idx(e1, e2) -> fprintf fmt "@[%a[%a]@]" pp_expr e1 pp_expr e2 
-  | Vec(es) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_expr) (Array.to_list es)
+  | Vec es -> array (List.map mclc (Array.to_list es)) 
+  | Idx (a, i) -> apply (array_get) ["", mclc a ; "", mclc i]
+
+  | Adt(a, []) -> construct (lift_lid a) None 
+  | Adt(a, es) -> construct (lift_lid a) (Some (tuple (List.map mclc es)))
+
+  | Case(e, ps) -> match_ (mclc e) (List.map casec ps)
+
+and casec (patt, e) = case (patc patt) (mclc e) 
+			
+
+			 (*
   | Case(e, ps) -> fprintf fmt "@[match@ %a@ with@ %a@]" pp_expr e (pp_list pp_pat) ps
   | Get(l) -> fprintf fmt "@[%s•get@]" l
   | Put(l, e) -> fprintf fmt "@[%s•put@ %a@]" l pp_expr e
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
   | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
-  | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
-  | Client e -> fprintf fmt "@[ℒ(%a)@]" pp_expr e *)
-
+			  *)
 let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
 							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;
 									  ppat_loc = Location.none ;

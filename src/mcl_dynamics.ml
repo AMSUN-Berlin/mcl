@@ -87,6 +87,7 @@ module StrSet = Set.Make(String)
 
 let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 
+
 let rec pass_error e f = match eval e with
   | VConst(Err msg) as err -> err
   | _ as v -> f v
@@ -95,6 +96,17 @@ and eval_array es vs i = if i < (Array.length es) then
 			   pass_error es.(i) (fun v -> (vs.(i) <- v ; eval_array es vs (i+1)))
 			 else
 			   VVec(vs)
+
+and lift_back e = pass_error e (function 
+  | VHost (Oval_constr ( Oide_ident "true", [] ), _) -> VConst (Bool true )
+  | VHost (Oval_constr ( Oide_ident "false", [] ), _) -> VConst (Bool false)
+  | VHost (Oval_float f, x) -> VConst (Float f)
+  | VHost (Oval_int i, x) -> VConst (Int i)
+  | VHost (v, x) -> VHost(v, x)
+  | v -> error_expected (expr2str e) "host language value" (val2str v))
+
+and eval_host_app x e = 
+ lift_back (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", e)]))
 
 and eval = function
    
@@ -111,15 +123,6 @@ and eval = function
 			| None -> VConst(Err("No working OCaml interpreter loaded."))
 		  end
 
-  | Client e -> pass_error e (function
-			       | VHost (Oval_constr ( Oide_ident "true", [] ), _) -> VConst (Bool true )
-			       | VHost (Oval_constr ( Oide_ident "false", [] ), _) -> VConst (Bool false)
-			       | VHost (Oval_float f, x) -> VConst (Float f)
-			       | VHost (Oval_int i, x) -> VConst (Int i)
-			       | VHost (v, x) -> VHost(v, x)
-			       | v -> error_expected (expr2str e) "host language value" (val2str v)
-			     )
-
   | Cond(i,t,e) -> 
      begin match eval i with
 	   | VConst(Err(_)) as err -> err
@@ -128,19 +131,20 @@ and eval = function
 	   | v -> error_expected (expr2str i) "boolean value" (val2str v)
      end
 
-  | App(e1, e2) as app -> begin match eval e1 with 			   
+  | App(e1, e2) as app -> pass_error e1 (function  			   
 				| VConst(Err msg) as err -> err
 				| VAbs(y, e3) -> eval ( subst y ( lift_value (eval e2) ) e3 )
-				| VHost(_,x) as f -> begin match eval e2 with 
-						      | VConst (Err e) -> VConst (Err e)
-						      | VConst (Bool b) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.ident (ident (string_of_bool b)))]))
-						      | VConst (Float f) -> eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_float (string_of_float f)))]))
+				| VHost(_,x) as f -> pass_error e2 (function
+						      | VConst (Bool b) -> 
+							 eval_host_app x (Ast_helper.Exp.ident (ident (string_of_bool b)))
+						      | VConst (Float f) -> 
+							 eval_host_app x (Ast_helper.Exp.constant (Asttypes.Const_float (string_of_float f)))						 
 						      | VConst (Int i) -> 
-							 eval (Host (Ast_helper.Exp.apply (Ast_helper.Exp.ident (ident x)) [("", Ast_helper.Exp.constant (Asttypes.Const_int i))]))
+							 eval_host_app x (Ast_helper.Exp.constant (Asttypes.Const_int i))
 						      | v -> VConst(Err(Printf.sprintf "Currently, only literal arguments are supported to OCaml expressions, got '%s'\n" (val2str v)))
-						end
+								   )
 				| _ as v -> error_expected (expr2str app) "function value" (val2str v) 
-			  end
+					)
 
   | Let(x, e1, e2) -> pass_error e1 (fun v -> eval ( subst x (lift_value v) e2 ))
 

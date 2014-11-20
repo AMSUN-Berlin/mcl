@@ -57,7 +57,6 @@ let rec erase_location = function
   | Return(e) -> Return (erase_location e)
   | Bind(x, l, r) -> Bind(x, erase_location l, erase_location r)
   | Adt(a, es) -> Adt(a, List.map erase_location es)
-  | Client e -> Client (erase_location e)
   | _ as e -> e
 
 let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str (erase_location expected) (erase_location (parse ucs))
@@ -70,14 +69,11 @@ let samples = [
   ("λx.x", Abs("x", Var("x"))) ;
   ("let v = ⟦1⟧ in v[0]", Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
   ("x x", App(Var("x"), Var("x"))) ;
-  ("3 > 4", Client(App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4)))));
-  ("3 * 4", Client(App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4)))));
+  ("3 > 4", App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
+  ("3 * 4", App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
   ("⟪ foo ⟫", Host(lift_ident "foo")) ;
-  ("ℒ x", Client(Var("x"))) ;  
-  ("-1", Client(App(Host(lift_ident "~-"), Const(Int(1)))));
-  ("⟪(>)⟫ (-1) 2", App(App(Host(lift_ident ">"), Client(App(Host(lift_ident "~-"), Const(Int(1))))), Const(Int(2)))) ;
-  ("ℒ ⟪ foo ⟫", Client(Host(lift_ident "foo"))) ;
-  ("ℒ ⟪(+)⟫ 40 2", Client (App(App(Host(lift_ident "+"), Const(Int(40))), Const(Int(2)))));
+  ("-1", App(Host(lift_ident "~-"), Const(Int(1))));
+  ("⟪(>)⟫ (-1) 2", App(App(Host(lift_ident ">"), App(Host(lift_ident "~-"), Const(Int(1)))), Const(Int(2)))) ;
   (" 1234", Const(Int(1234)));
   (" 1.234", Const(Float(1.234)));
   ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));

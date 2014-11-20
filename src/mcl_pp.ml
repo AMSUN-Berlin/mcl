@@ -60,7 +60,6 @@ and pp_expr fmt = function
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
   | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
   | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
-  | Client e -> fprintf fmt "@[ℒ(%a)@]" pp_expr e
 
 and pp_pat fmt ((a, xs), e) = 
   fprintf fmt "@[|@ [@%s⟨%a⟩@]@ →@ %a@]" a (pp_list pp_print_string) xs pp_expr e

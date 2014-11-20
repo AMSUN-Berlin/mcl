@@ -29,29 +29,52 @@
 open Batteries
 open Map
 
+(* pattern language, to be expanded *)
 type patt = string * (string list)
 
+(* literals *)
 type const = 
 	  | Float of float
 	  | Int of int
 	  | Err of string
 	  | Bool of bool
 
-and expr = Var of string 
-	 | Abs of string * expr
-	 | App of expr * expr
-	 | Const of const
-	 | Host of Parsetree.expression
-	 | Client of expr
-	 | Let of string * expr * expr
-	 | Letrec of string * expr * expr
-	 | Cond of expr * expr * expr
-	 (* | New of expr *)
-	 | Idx of expr * expr
-	 | Vec of expr array
-	 | Case of expr * (patt * expr) list
-	 | Adt of string * (expr list)
-	 | Get of string | Put of string * expr | Return of expr | Bind of string * expr * expr
+and expr = 
+  (* Lambda calculus with let (rec) - bindings *)
+  | Var of string 
+  | Abs of string * expr
+  | App of expr * expr
+  | Const of const
+  | Let of string * expr * expr
+  | Letrec of string * expr * expr
+				
+  (* meta-language (OCaml) *)
+  | Host of Parsetree.expression	 
+	      
+  (* control flow *)
+  | Cond of expr * expr * expr
+	 
+  (* data structures *)
+  | Idx of expr * expr
+  | Vec of expr array
+  | Case of expr * (patt * expr) list
+  | Adt of string * (expr list)
+		      
+  (* modeling *)
+  | New of model_expr
+  | Get of string | Put of string * expr | Return of expr | Bind of string * expr * expr
+
+(* high level ('object-oriented') modeling *)
+and model_expr = Model of model_field list
+	       | MLet of string * model_expr * model_expr
+               | MName of string
+               | Modify of string * expr * model_expr
+
+(* model construction *)
+and model_field = Named of string * expr
+                 | Replaceable of string * expr (* replaceable (by name) fields *)
+		 | Unnamed of expr
+		 | Extend of model_expr
 
 let rec subst x v = function
   | Var y when x = y -> v
@@ -76,14 +99,28 @@ let rec subst x v = function
   | Bind(y, e1, e2) -> Bind(y, subst x v e1, subst x v e2)
   | Adt(a, es) -> Adt(a, List.map (subst x v) es)
   | Host e -> Host e
-  | Client e -> Client (subst x v e)
 
 and pat_subst x v ((const, vars), e) = 
   if (List.mem x vars) then 
     ((const, vars), e)
   else
     ((const, vars), subst x v e)
-	      
+
+(*
+let rec freplaceables env fds = function
+  | Named (x, e)::r -> freplaceables env fds r
+  | Replaceable(x, e)::r -> freplaceables env ((x,e)::fds) r
+  | (Unnamed e) :: r -> freplaceables env fds r
+  | (Extend m) :: r -> freplaceables (replaceables env fds m) r
+
+and replaceables env rs = function
+  | Model (mfds) -> freplaceables rs mfds
+  | MLet (x, m, m') -> replaceables (StrMap.add x (replaceables m env []) env) rs m'
+  | MName (x) -> StrMap.mem x env
+  | Modify(_,_,m) -> replaceables env rs m
+ *)	      
+
+
 (* ignore locations for comparison *)
 let rec compare_exp e1 = function
   | Host(c2) -> begin match e1 with Host(c1) -> c1 = c2 | _ -> false end
@@ -102,4 +139,3 @@ let rec compare_exp e1 = function
   | Return(e) -> begin match e1 with Return(e') -> compare_exp e e' | _ -> false end 
   | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (compare_exp l l') && (compare_exp r r') | _ -> false end 
   | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (compare_exp e e')) true es es' | _ -> false end
-  | Client e -> begin match e1 with Client e' -> compare_exp e e' | _ -> false end

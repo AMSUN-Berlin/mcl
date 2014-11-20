@@ -68,7 +68,6 @@ let name_of_token = function
   | GEQ -> "GEQ"
   | LEQ -> "LEQ"
   | NEQ -> "NEQ"
-  | LIFT -> "LIFT"
 
 type cursor = { 
   line : int;
@@ -123,7 +122,6 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
 
   let rec token () =
     match%sedlex buf with
-    | 0x2112 -> LIFT
     | '(' ->  LPAREN 
     | ')' ->  RPAREN
     | '=' ->  EQ
