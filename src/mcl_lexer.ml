@@ -48,13 +48,16 @@ let name_of_token = function
   | ELSE -> "ELSE"	      
   | LET -> "LET"
   | REC -> "REC"
-  (*| NEW -> "NEW"*)
+  | NEW -> "NEW"
   | IN -> "IN"
   | LEFTARROW -> "LEFTARROW"
+  | DLEFTARROW -> "DLEFTARROW"
   | RBRACKET -> "RBRACKET"
   | RDBRACKET -> "RDBRACKET"
   | LBRACKET -> "LBRACKET"
   | LDBRACKET -> "LDBRACKET"
+  | LBRACE -> "LBRACE"
+  | RBRACE -> "RBRACE"
   | EOF -> "EOF"
   | HOST x -> Printf.sprintf "HOST (%s)" x 
   | IDENT x -> Printf.sprintf "IDENT (%s)" x 
@@ -73,6 +76,7 @@ let name_of_token = function
   | EXTEND -> "EXTEND"
   | REPLACEABLE -> "REPLACEABLE"
   | REPLACE -> "REPLACE"
+  | WITH -> "WITH"
 
 type cursor = { 
   line : int;
@@ -129,6 +133,8 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     match%sedlex buf with
     | '(' ->  LPAREN 
     | ')' ->  RPAREN
+    | '{' -> LBRACE
+    | '}' -> RBRACE
     | '=' ->  EQ
     | '+' ->  PLUS
     | '*' ->  TIMES
@@ -170,6 +176,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
 
     | 8226 ->  BULLET
     | 8592 ->  LEFTARROW
+    | 0x21D0 -> DLEFTARROW
 
     | 0x27EA, Star ( Compl (0x27EB) ) , 0x27EB -> 
        HOST (Sedlexing.Utf8.sub_lexeme buf 1 ((lexeme_length buf) - 2))
