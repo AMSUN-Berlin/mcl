@@ -73,7 +73,15 @@ let samples = [
   ("⟪(*ocaml comment inside constant*)⟫⟪⟫", [HOST "(*ocaml comment inside constant*)"; HOST "" ]) ;
   ("foo•put", [IDENT "foo" ; BULLET ; PUT ] ) ;
   ("foo•get", [IDENT "foo" ; BULLET ; GET ] ) ;
-  ("x←1", [IDENT "x"; LEFTARROW; INT 1 ] )
+  ("x←1", [IDENT "x"; LEFTARROW; INT 1 ] );
+  ("{}", [LBRACE; RBRACE]);
+  ("⇐", [DLEFTARROW]);
+  ("replaceable", [REPLACEABLE]);
+  ("state", [STATE]);
+  ("model", [MODEL]);
+  ("with", [WITH]);
+  ("extend", [EXTEND]);
+
 ]
 
 let test_case (input, expected) =

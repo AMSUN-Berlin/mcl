@@ -68,6 +68,11 @@ let name_of_token = function
   | GEQ -> "GEQ"
   | LEQ -> "LEQ"
   | NEQ -> "NEQ"
+  | STATE -> "STATE"
+  | MODEL -> "MODEL"
+  | EXTEND -> "EXTEND"
+  | REPLACEABLE -> "REPLACEABLE"
+  | REPLACE -> "REPLACE"
 
 type cursor = { 
   line : int;
@@ -147,6 +152,13 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | "rec" ->  ( REC )
     | "get" ->  GET
     | "put" ->  PUT
+    | "replace" -> REPLACE
+    | "replaceable" -> REPLACEABLE
+    | "extend" -> EXTEND
+    | "new" -> NEW
+    | "model" -> MODEL
+    | "state" -> STATE
+    | "with" -> WITH
     | 0x03BB ->  ( LAMBDA ) 
     | 0x005B ->  LBRACKET 
     | 0x005D ->  RBRACKET

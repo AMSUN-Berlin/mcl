@@ -71,7 +71,7 @@ and pp_model fmt = function
   | Model(fds) -> fprintf fmt "@[{%a}@]" (pp_list ~sep:";" pp_fd) fds
   | MLet (x, m, m') -> fprintf fmt "@[model@ %s@ =@ %a@ in@ %a]" x pp_model m pp_model m'
   | MState (x, e, m) -> fprintf fmt "@[state@ %s@ =@ %a@ in@ %a]" x pp_expr e pp_model m
-  | MModify (x, e, m) -> fprintf fmt "@[replace@ %s@ by@ %a@ in@ %a]" x pp_expr e pp_model m
+  | MModify (x, e, m) -> fprintf fmt "@[replace@ %s@ with@ %a@ in@ %a]" x pp_expr e pp_model m
   | MVar x -> fprintf fmt "@[%s@]" x
 
 and pp_pat fmt ((a, xs), e) = 

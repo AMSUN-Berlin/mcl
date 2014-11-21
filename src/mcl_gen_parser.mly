@@ -34,7 +34,7 @@
 %token PLUS MINUS TIMES DIV
 %token EOF
 
-%token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE BY REPLACE REPLACEABLE EXTEND
+%token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH
 
 %nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
 %left GT LT NEQ GEQ LEQ EQ 
@@ -72,7 +72,7 @@ model :
 			     { Model(fds) }
 | MODEL x = IDENT EQ m = model IN m2 = model { MLet(x, m, m2) }
 | STATE x = IDENT EQ e = expr IN m = model { MState(x, e, m) }
-| REPLACE x = IDENT BY e = expr IN m = model { MModify(x, e, m) }
+| REPLACE x = IDENT WITH e = expr IN m = model { MModify(x, e, m) }
 
 field:
 | e = expr { Unnamed e }
