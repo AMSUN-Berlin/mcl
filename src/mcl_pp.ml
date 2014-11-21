@@ -51,7 +51,7 @@ and pp_expr fmt = function
   | Let(x, e1, e2) -> fprintf fmt "@[let@ %s@ =@ %a@ in@ %a@]" x pp_expr e1 pp_expr e2
   | Letrec(x, e1, e2) -> fprintf fmt "@[let@ rec@ %s@ =@ %a@ in@ %a@]" x pp_expr e1 pp_expr e2
   | Cond(c, t, e) -> fprintf fmt "@[if@ %a@ then@ %a@ else@ %a @]" pp_expr c pp_expr t pp_expr e
-  (* | New(e) -> fprintf fmt "@[(new@ %a)@]" pp_expr e  *)
+  | New(m) -> fprintf fmt "@[(new@ %a)@]" pp_model m 
   | Idx(e1, e2) -> fprintf fmt "@[%a[%a]@]" pp_expr e1 pp_expr e2 
   | Vec(es) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_expr) (Array.to_list es)
   | Case(e, ps) -> fprintf fmt "@[match@ %a@ with@ %a@]" pp_expr e (pp_list pp_pat) ps
@@ -60,6 +60,19 @@ and pp_expr fmt = function
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
   | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
   | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
+
+and pp_fd fmt = function
+  | Extend m -> fprintf fmt "@[extend %a@]" pp_model m
+  | Replaceable(x, e) -> fprintf fmt "@[replaceable@ %s@ ⇐@ %a@]" x pp_expr e
+  | Named(x, e) -> fprintf fmt "@[%s@ ⇐@ %a@]" x pp_expr e
+  | Unnamed(e) -> fprintf fmt "@[%a@]" pp_expr e
+			  
+and pp_model fmt = function
+  | Model(fds) -> fprintf fmt "@[{%a}@]" (pp_list ~sep:";" pp_fd) fds
+  | MLet (x, m, m') -> fprintf fmt "@[model@ %s@ =@ %a@ in@ %a]" x pp_model m pp_model m'
+  | MState (x, e, m) -> fprintf fmt "@[state@ %s@ =@ %a@ in@ %a]" x pp_expr e pp_model m
+  | MModify (x, e, m) -> fprintf fmt "@[replace@ %s@ by@ %a@ in@ %a]" x pp_expr e pp_model m
+  | MVar x -> fprintf fmt "@[%s@]" x
 
 and pp_pat fmt ((a, xs), e) = 
   fprintf fmt "@[|@ [@%s⟨%a⟩@]@ →@ %a@]" a (pp_list pp_print_string) xs pp_expr e
