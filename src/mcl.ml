@@ -67,8 +67,9 @@ and expr =
 (* high level ('object-oriented') modeling *)
 and model_expr = Model of model_field list
 	       | MLet of string * model_expr * model_expr
-               | MName of string
-               | Modify of string * expr * model_expr
+	       | MState of string * expr * model_expr
+               | MVar of string
+               | MModify of string * expr * model_expr
 
 (* model construction *)
 and model_field = Named of string * expr
