@@ -77,6 +77,39 @@ and model_field = Named of string * expr
 		 | Unnamed of expr
 		 | Extend of model_expr
 
+(* ignore locations for comparison *)
+let rec equal_expr e1 = function
+  | Host(c2) -> begin match e1 with Host(c1) -> c1 = c2 | _ -> false end
+  | Var x -> e1 = Var(x)
+  | Abs(x, e) -> begin match e1 with Abs(y, e') when x=y -> equal_expr e e' | _ -> false end
+  | App(l, r) -> begin match e1 with App(l', r') -> (equal_expr l l') && (equal_expr r r')  | _ -> false end
+  | Const c -> e1 = Const(c)
+  | Let(x, e, i) ->  begin match e1 with Let(y, e', i') when x=y -> (equal_expr e e') && (equal_expr i i') | _ -> false end
+  | Letrec(x, e, i) ->  begin match e1 with Letrec(y, e', i') when x=y -> (equal_expr e e') && (equal_expr i i') | _ -> false end
+  | Cond(c, t, e) ->  begin match e1 with Cond(c', t', e') -> (equal_expr c c') && (equal_expr t t') && (equal_expr e e') | _ -> false end
+  | Idx(e, i) -> begin match e1 with Idx(e', i') -> (equal_expr e e') && (equal_expr i i')  | _ -> false end
+  | Vec(es) -> begin match e1 with Vec(es') -> Enum.fold2 (fun e e' a -> a && (equal_expr e e')) true (Array.enum es) (Array.enum es') | _ -> false end
+  | Case(e, ps) -> begin match e1 with Case(e', ps') -> List.fold_left2 (fun a (p,e) (p',e') -> a && (p = p') && (equal_expr e e')) true ps ps' | _ -> false end 
+  | Get(l) -> e1 = Get(l)
+  | Put(l, e) -> begin match e1 with Put(l', e') when l = l' -> equal_expr e e' | _ -> false end 
+  | Return(e) -> begin match e1 with Return(e') -> equal_expr e e' | _ -> false end 
+  | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (equal_expr l l') && (equal_expr r r') | _ -> false end 
+  | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (equal_expr e e')) true es es' | _ -> false end    
+
+and equal_model_field f = function
+  | Extend m -> begin match f with Extend m' -> equal_model_expr m m' | _ -> false end
+  | Named(x, e) -> begin match f with Named(y, e') when x = y -> equal_expr e e' | _ -> false end
+  | Replaceable(x, e) -> begin match f with Replaceable(y, e') when x = y -> equal_expr e e' | _ -> false end
+  | Unnamed(e) -> begin match f with Unnamed(e') -> equal_expr e e' | _ -> false end 		 
+
+and equal_model_expr m = function
+  | Model(fds) -> begin match m with Model(fds') -> Enum.fold2 (fun f f' a -> a && (equal_model_field f f')) true (List.enum fds) (List.enum fds') | _ -> false end
+  | MVar(x) -> begin match m with MVar(y) -> x = y | _ -> false end
+  | MLet(x, a, b) -> begin match m with MLet(y, a', b') when x = y -> (equal_model_expr a a') && (equal_model_expr b b') | _ -> false end
+  | MState(x, a, b) -> begin match m with MState(y, a', b') when x = y -> (equal_expr a a') && (equal_model_expr b b') | _ -> false end
+  | MModify(x, a, b) -> begin match m with MModify(y, a', b') when x = y -> (equal_expr a a') && (equal_model_expr b b') | _ -> false end
+ 
+
 let rec subst x v = function
   | Var y when x = y -> v
   | Var y -> Var y
@@ -120,23 +153,3 @@ and replaceables env rs = function
   | MName (x) -> StrMap.mem x env
   | Modify(_,_,m) -> replaceables env rs m
  *)	      
-
-
-(* ignore locations for comparison *)
-let rec compare_exp e1 = function
-  | Host(c2) -> begin match e1 with Host(c1) -> c1 = c2 | _ -> false end
-  | Var x -> e1 = Var(x)
-  | Abs(x, e) -> begin match e1 with Abs(y, e') when x=y -> compare_exp e e' | _ -> false end
-  | App(l, r) -> begin match e1 with App(l', r') -> (compare_exp l l') && (compare_exp r r')  | _ -> false end
-  | Const c -> e1 = Const(c)
-  | Let(x, e, i) ->  begin match e1 with Let(y, e', i') when x=y -> (compare_exp e e') && (compare_exp i i') | _ -> false end
-  | Letrec(x, e, i) ->  begin match e1 with Letrec(y, e', i') when x=y -> (compare_exp e e') && (compare_exp i i') | _ -> false end
-  | Cond(c, t, e) ->  begin match e1 with Cond(c', t', e') -> (compare_exp c c') && (compare_exp t t') && (compare_exp e e') | _ -> false end
-  | Idx(e, i) -> begin match e1 with Idx(e', i') -> (compare_exp e e') && (compare_exp i i')  | _ -> false end
-  | Vec(es) -> begin match e1 with Vec(es') -> Enum.fold2 (fun e e' a -> a && (compare_exp e e')) true (Array.enum es) (Array.enum es') | _ -> false end
-  | Case(e, ps) -> begin match e1 with Case(e', ps') -> List.fold_left2 (fun a (p,e) (p',e') -> a && (p = p') && (compare_exp e e')) true ps ps' | _ -> false end 
-  | Get(l) -> e1 = Get(l)
-  | Put(l, e) -> begin match e1 with Put(l', e') when l = l' -> compare_exp e e' | _ -> false end 
-  | Return(e) -> begin match e1 with Return(e') -> compare_exp e e' | _ -> false end 
-  | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (compare_exp l l') && (compare_exp r r') | _ -> false end 
-  | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (compare_exp e e')) true es es' | _ -> false end

@@ -81,7 +81,7 @@ let samples = [
   ("model", [MODEL]);
   ("with", [WITH]);
   ("extend", [EXTEND]);
-
+  (";", [SEMICOLON]);
 ]
 
 let test_case (input, expected) =

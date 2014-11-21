@@ -33,60 +33,80 @@ open Mcl_lexer
 open Mcl_pp
 open Parsetree
 
-let rec parse ucs = 
-  let next () = next_token ucs in    
-  expr_parser "test" next
-
 let erase_locations_mapper = { Ast_mapper.default_mapper with 
 			       location = fun mapper l -> Location.none
 			     }
 
-let erase_location e = erase_locations_mapper.expr erase_locations_mapper e
-
-let rec erase_location = function
+let rec prep_expr = function
   | Host(c) -> Host ( erase_locations_mapper.expr erase_locations_mapper c )
-  | Abs(x, e) -> Abs ( x, erase_location e)
-  | App(l, r) -> App ( erase_location l, erase_location r )
-  | Let(x, e, i) ->  Let ( x, erase_location e, erase_location i)
-  | Letrec(x, e, i) ->  Letrec ( x, erase_location e, erase_location i)
-  | Cond(c, t, e) ->  Cond (erase_location c, erase_location t, erase_location e)
-  | Idx(e, i) -> Idx(erase_location e, erase_location i)
-  | Vec(es) -> Vec ( Array.map erase_location es )
-  | Case(e, ps) -> Case(erase_location e, List.map (fun (p, e) -> (p, erase_location e)) ps)
-  | Put(l, e) -> Put(l, erase_location e)
-  | Return(e) -> Return (erase_location e)
-  | Bind(x, l, r) -> Bind(x, erase_location l, erase_location r)
-  | Adt(a, es) -> Adt(a, List.map erase_location es)
+  | Abs(x, e) -> Abs ( x, prep_expr e)
+  | App(l, r) -> App ( prep_expr l, prep_expr r )
+  | Let(x, e, i) ->  Let ( x, prep_expr e, prep_expr i)
+  | Letrec(x, e, i) ->  Letrec ( x, prep_expr e, prep_expr i)
+  | Cond(c, t, e) ->  Cond (prep_expr c, prep_expr t, prep_expr e)
+  | Idx(e, i) -> Idx(prep_expr e, prep_expr i)
+  | Vec(es) -> Vec ( Array.map prep_expr es )
+  | Case(e, ps) -> Case(prep_expr e, List.map (fun (p, e) -> (p, prep_expr e)) ps)
+  | Put(l, e) -> Put(l, prep_expr e)
+  | Return(e) -> Return (prep_expr e)
+  | Bind(x, l, r) -> Bind(x, prep_expr l, prep_expr r)
+  | Adt(a, es) -> Adt(a, List.map prep_expr es)
+  | New(m) -> New(prep_model m)
   | _ as e -> e
 
-let test_parsing (ucs, expected) = assert_equal ~cmp:compare_exp ~msg:"equality" ~printer:expr2str (erase_location expected) (erase_location (parse ucs))
+and prep_field = function
+    Extend m -> Extend (prep_model m)
+  | Unnamed e -> Unnamed (prep_expr e)
+  | Named (x, e) -> Named(x, prep_expr e)
+  | Replaceable(x, e) -> Replaceable(x, prep_expr e)
+
+and prep_model = function
+  | Model(fds) -> Model(List.map prep_field fds)
+  | MVar x -> MVar x
+  | MLet(x, m, m') -> MLet(x, prep_model m, prep_model m')
+  | MState(x, e, m) -> MState(x, prep_expr e, prep_model m)
+  | MModify(x, e, m) -> MModify(x, prep_expr e, prep_model m)
 
 let lift_ident = Mcl_ocaml.lift_ident
 
-let samples = [ 
-  (" 1.234", Const(Float(1.234)));
-  ("x", Var("x")) ;
-  ("λx.x", Abs("x", Var("x"))) ;
-  ("let v = ⟦1⟧ in v[0]", Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
-  ("x x", App(Var("x"), Var("x"))) ;
-  ("3 > 4", App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
-  ("3 * 4", App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
-  ("⟪ foo ⟫", Host(lift_ident "foo")) ;
-  ("-1", App(Host(lift_ident "~-"), Const(Int(1))));
-  ("⟪(>)⟫ (-1) 2", App(App(Host(lift_ident ">"), App(Host(lift_ident "~-"), Const(Int(1)))), Const(Int(2)))) ;
-  (" 1234", Const(Int(1234)));
-  (" 1.234", Const(Float(1.234)));
-  ("let x = 42 in x", Let("x", Const(Int(42)), Var("x")));
-  ("let x = λx.x in x", Let("x", Abs("x", Var("x")), Var("x")));
-  ("let rec x = λx.x in x", Letrec("x", Abs("x", Var("x")), Var("x")));
-  ("let f = ⟪(+)⟫ 40 in f 2", Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
-]
+let expr input expected = 
+  let ucs = state_from_utf8_string input in
+  let next () = next_token ucs in
+  (Printf.sprintf "test parsing '%s'" input) >:: 
+    fun () -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr (expr_parser "test" next)) 
+  
+let model input expected = 
+  let ucs = state_from_utf8_string input in
+  let next () = next_token ucs in
+  (Printf.sprintf "test parsing '%s'" input) >:: 
+    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next))
 
-let test_case (input, expected) =
-  let teardown _ = () in
-  let setup () = (state_from_utf8_string input, expected)
-  in
-  (Printf.sprintf "test parsing '%s'" input) >:: (bracket setup test_parsing teardown)
+let test_cases = [ 
+  expr "1.234" (Const(Float(1.234)));
+  expr "x" (Var("x")) ;
+  expr "λx.x" (Abs("x", Var("x"))) ;
+  expr "let v = ⟦1⟧ in v[0]" (Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
+  expr "x x" (App(Var("x"), Var("x"))) ;
+  expr "3 > 4" (App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
+  expr "3 * 4" (App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
+  expr "⟪ foo ⟫" (Host(lift_ident "foo")) ;
+  expr "-1" (App(Host(lift_ident "~-"), Const(Int(1))));
+  expr "⟪(>)⟫ (-1) 2" (App(App(Host(lift_ident ">"), App(Host(lift_ident "~-"), Const(Int(1)))), Const(Int(2)))) ;
+  expr " 1234" (Const(Int(1234)));
+  expr " 1.234" (Const(Float(1.234)));
+  expr "let x = 42 in x" (Let("x", Const(Int(42)), Var("x")));
+  expr "let x = λx.x in x" (Let("x", Abs("x", Var("x")), Var("x")));
+  expr "let rec x = λx.x in x" (Letrec("x", Abs("x", Var("x")), Var("x")));
+  expr "let f = ⟪(+)⟫ 40 in f 2" (Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+
+  model "{}" (Model([]));
+  model "{1}" (Model([Unnamed (Const(Int 1))]));
+  model "{1;2;3}" (Model([Unnamed (Const(Int 1)) ; Unnamed (Const(Int 2)) ; Unnamed (Const(Int 3))]));
+  model "{extend {}}" (Model([Extend(Model [])])) ;
+  model "{extend {} ; x ⇐ u}" (Model([Extend(Model []); Named("x", Var("u"))])) ;
+  model "{x ⇐ u}" (Model([Named("x", Var("u"))])) ;
+  model "{replaceable x ⇐ u}" (Model([Replaceable("x", Var("u"))])) ;
+  model "replace x with y in m" (MModify("x", Var("y"), MVar("m"))) ;
+]
 						  
-let suite = "Parser" >:::
-	      ( List.map test_case samples )
+let suite = "Parser" >::: test_cases

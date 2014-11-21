@@ -15,7 +15,7 @@ Library mcllib
   CompiledObject: best
   BuildTools: ocamlbuild
   Modules:    Mcl, Mcl_lexer, Mcl_parser, Mcl_gen_parser, Mcl_dynamics, Mcl_pp, Mcl_ocaml, Ocaml_genprintval, Ocaml_toploop, Ocaml_opttoploop
-  BuildDepends: bigarray, batteries, menhirLib, sedlex, compiler-libs.common, compiler-libs.bytecomp, compiler-libs.optcomp, dynlink
+  BuildDepends: bigarray, batteries, menhirLib, sedlex, compiler-libs.common, compiler-libs.bytecomp, compiler-libs.optcomp, dynlink, ppx_deriving.eq
 
 Executable "mcl_tests"
   Path: test

@@ -131,6 +131,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
 
   let rec token () =
     match%sedlex buf with
+    | ';' -> SEMICOLON
     | '(' ->  LPAREN 
     | ')' ->  RPAREN
     | '{' -> LBRACE

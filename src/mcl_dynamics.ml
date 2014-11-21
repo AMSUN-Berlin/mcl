@@ -187,7 +187,15 @@ and eval = function
 		       end
 
   | _ as exp -> VConst (Err (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (expr2str exp)))
-		       
+
+(*
+and meval = function
+  | Model(fds) ->
+  | MLet (x, m, m') -> 
+  | MState (x, e, m) ->
+  | MModify (x, e, m) ->
+  | _ as m -> VConst (Err (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (m2str m)))
+ *)
 
 let rec elab s = function
   | MReturn(v) -> (s, v)

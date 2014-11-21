@@ -62,10 +62,13 @@
     App(App((Host(lift_ident op)), e1), e2)
 %}
 
-%start <Mcl.expr> main
+%start <Mcl.model_expr> main
+%start <Mcl.expr> sole_expr
 
 %%
-main: e = expr EOF { e }
+main: m = model EOF { m }
+
+sole_expr: e = expr EOF { e } 
 
 model :
 | LBRACE fds = separated_list(SEMICOLON, field) RBRACE 
@@ -73,6 +76,8 @@ model :
 | MODEL x = IDENT EQ m = model IN m2 = model { MLet(x, m, m2) }
 | STATE x = IDENT EQ e = expr IN m = model { MState(x, e, m) }
 | REPLACE x = IDENT WITH e = expr IN m = model { MModify(x, e, m) }
+| x = IDENT { MVar(x) }
+
 
 field:
 | e = expr { Unnamed e }

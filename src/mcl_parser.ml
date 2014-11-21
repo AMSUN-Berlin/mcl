@@ -43,5 +43,7 @@ let get_end src {cursor ; size} = {Lexing.pos_fname = src ;
 				   Lexing.pos_cnum = cursor.char + size;
 				  }
 			       
-let expr_parser src = MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.main
+let expr_parser src = MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.sole_expr
+
+let model_parser src = MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.main
 

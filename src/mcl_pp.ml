@@ -82,3 +82,7 @@ let expr2str e =
   (pp_expr Format.str_formatter e) ;
   Format.flush_str_formatter ()
 
+let model2str m = 
+  (pp_model Format.str_formatter m) ;
+  Format.flush_str_formatter ()
+
