@@ -28,13 +28,16 @@
 
 open Mcl
 open Mcl_pp
-open Batteries
 open Format
+open Batteries
 open Outcometree
+
+module StrMap = Map.Make(String)
 
 type value = VConst of const
 	   | VAbs of string * expr
 	   | VAdt of string * (value list)
+	   | VObj of (expr StrMap.t)
 	   | VMonad of monad
 	   | VVec of value array
 	   | VHost of out_value * string
@@ -46,6 +49,8 @@ and monad = MGet of string
 
 let unit_val = VVec([||])
 
+let rec pp_field fmt (x,e) = fprintf fmt "%s@ =@ %a" x pp_expr e
+
 let rec pp_val fmt = function 
   | VHost(v,_) -> fprintf fmt "⟪%a⟫" (!Oprint.out_value) v
   | VConst c -> fprintf fmt "@[%a@]" pp_const c
@@ -53,6 +58,7 @@ let rec pp_val fmt = function
   | VMonad(m) -> pp_monad fmt m
   | VVec(vs) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_val) (Array.to_list vs)
   | VAdt(a, vs) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_val) vs
+  | VObj ms -> fprintf fmt "@[⦃%a⦄@]" (pp_enum ~sep:";" pp_field) (StrMap.enum ms)
 
 and pp_monad fmt = function
   | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
@@ -82,7 +88,6 @@ and lift_value = function
 let error_expected op exp got =
   VConst( Err ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) )
 
-module StrMap = Map.Make(String)
 module StrSet = Set.Make(String)
 
 let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()

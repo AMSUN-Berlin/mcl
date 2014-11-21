@@ -62,6 +62,7 @@ and expr =
 		      
   (* modeling *)
   | New of model_expr
+  | Method of string * expr 
   | Get of string | Put of string * expr | Return of expr | Bind of string * expr * expr
 
 (* high level ('object-oriented') modeling *)
@@ -95,6 +96,8 @@ let rec equal_expr e1 = function
   | Return(e) -> begin match e1 with Return(e') -> equal_expr e e' | _ -> false end 
   | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (equal_expr l l') && (equal_expr r r') | _ -> false end 
   | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (equal_expr e e')) true es es' | _ -> false end    
+  | New m -> begin match e1 with New(m') -> equal_model_expr m m' | _ -> false end
+  | Method(x, e) -> begin match e1 with Method(y,e') when x = y -> equal_expr e e' | _ -> false end 
 
 and equal_model_field f = function
   | Extend m -> begin match f with Extend m' -> equal_model_expr m m' | _ -> false end
@@ -109,7 +112,6 @@ and equal_model_expr m = function
   | MState(x, a, b) -> begin match m with MState(y, a', b') when x = y -> (equal_expr a a') && (equal_model_expr b b') | _ -> false end
   | MModify(x, a, b) -> begin match m with MModify(y, a', b') when x = y -> (equal_expr a a') && (equal_model_expr b b') | _ -> false end
  
-
 let rec subst x v = function
   | Var y when x = y -> v
   | Var y -> Var y
@@ -122,7 +124,7 @@ let rec subst x v = function
   | Letrec(y, e1, e2) when x = y -> Letrec(y, e1, e2)
   | Letrec(y, e1, e2) -> Letrec(y, subst x v e1, subst x v e2)
   | Cond(c, t, e) -> Cond(subst x v c, subst x v t, subst x v e)
-  (* | New e -> New (subst x v e) *)
+  | New m -> New (m_subst_e x v m)
   | Idx(e1, e2) -> Idx(subst x v e1, subst x v e2)
   | Vec(es) -> Vec( Array.map (subst x v) es )
   | Case(e, ps) -> Case(subst x v e, List.map (pat_subst x v) ps)
@@ -134,11 +136,75 @@ let rec subst x v = function
   | Adt(a, es) -> Adt(a, List.map (subst x v) es)
   | Host e -> Host e
 
+and subst_m x sm = function
+  | Var y -> Var y
+  | Abs(y,e) when x = y -> Abs(y, e)
+  | Abs(y,e) -> Abs(y, subst_m x sm e)
+  | App(e1,e2) -> App(subst_m x sm e1, subst_m x sm e2)
+  | Const c -> Const c
+  | Let(y, e1, e2) when x = y -> Let(y, e1, e2)
+  | Let(y, e1, e2) -> Let(y, subst_m x sm e1, subst_m x sm e2)
+  | Letrec(y, e1, e2) when x = y -> Letrec(y, e1, e2)
+  | Letrec(y, e1, e2) -> Letrec(y, subst_m x sm e1, subst_m x sm e2)
+  | Cond(c, t, e) -> Cond(subst_m x sm c, subst_m x sm t, subst_m x sm e)
+  | New m -> New (m_subst_m x sm m)
+  | Idx(e1, e2) -> Idx(subst_m x sm e1, subst_m x sm e2)
+  | Vec(es) -> Vec( Array.map (subst_m x sm) es )
+  | Case(e, ps) -> Case(subst_m x sm e, List.map (pat_subst_m x sm) ps)
+  | Get(l) -> Get(l)
+  | Put(l, e) -> Put(l, subst_m x sm e)
+  | Return(e) -> Return(subst_m x sm e)
+  | Bind(y, e1, e2) when x = y -> Bind(y, e1, e2)
+  | Bind(y, e1, e2) -> Bind(y, subst_m x sm e1, subst_m x sm e2)
+  | Adt(a, es) -> Adt(a, List.map (subst_m x sm) es)
+  | Host e -> Host e
+
+and m_subst_e x v = function
+  | MVar(y) -> MVar(y)
+  | MLet(y, m, m') when x = y -> MLet(y,m,m')
+  | MLet(y, m, m') -> MLet(y,m_subst_e x v m , m_subst_e x v m')
+  | MState(s, e, m) -> MState(s, subst x v e , m_subst_e x v m)
+  | Model(fds) -> Model(fds_subst_e x v fds)
+  | MModify(x, e, m) -> MModify(x, subst x v e, m_subst_e x v m)
+
+and fds_subst_e x v = function
+  | (Extend m) :: r -> Extend (m_subst_e x v m) :: (fds_subst_e x v r)
+  | Named(y,e) :: r when y = x -> Named(y,subst x v e)::r
+  | Named(y,e) :: r -> Named(y, subst x v e)::(fds_subst_e x v r)
+  | Unnamed(e) :: r -> Unnamed(subst x v e)::(fds_subst_e x v r)
+  | Replaceable(y,e) :: r when y = x -> Replaceable(y,subst x v e)::r
+  | Replaceable(y,e) :: r -> Replaceable(y, subst x v e)::(fds_subst_e x v r)
+  | [] -> []
+
+and fds_subst_m x sm = function
+  | (Extend m) :: r -> Extend (m_subst_m x sm m) :: (fds_subst_m x sm r)
+  | Named(y,e) :: r when y = x -> Named(y,subst_m x sm e)::r
+  | Named(y,e) :: r -> Named(y, subst_m x sm e)::(fds_subst_m x sm r)
+  | Unnamed(e) :: r -> Unnamed(subst_m x sm e)::(fds_subst_m x sm r)
+  | Replaceable(y,e) :: r when y = x -> Replaceable(y,subst_m x sm e)::r
+  | Replaceable(y,e) :: r -> Replaceable(y, subst_m x sm e)::(fds_subst_m x sm r)
+  | [] -> []
+
+and m_subst_m x sm = function
+    MVar(y) when x = y -> sm
+  | MVar(y) -> MVar(y)
+  | MLet(y, m, m') when x = y -> MLet(y,m,m')
+  | MLet(y, m, m') -> MLet(y,m_subst_m x sm m , m_subst_m x sm m')
+  | MState(s, e, m) -> MState(s, subst_m x sm e , m_subst_m x sm m)
+  | Model(fds) -> Model(fds_subst_m x sm fds)
+  | MModify(x, e, m) -> MModify(x, subst_m x sm e, m_subst_m x sm m)
+			       
 and pat_subst x v ((const, vars), e) = 
   if (List.mem x vars) then 
     ((const, vars), e)
   else
     ((const, vars), subst x v e)
+
+and pat_subst_m x v ((const, vars), e) = 
+  if (List.mem x vars) then 
+    ((const, vars), e)
+  else
+    ((const, vars), subst_m x v e)
 
 (*
 let rec freplaceables env fds = function

@@ -26,6 +26,7 @@
  *
  *)
 
+open Batteries
 open Format
 open Mcl
 
@@ -35,6 +36,14 @@ let rec pp_list ?(sep="") pp_element fmt = function
     Format.fprintf fmt "%a%s@,%a"
       pp_element h sep (pp_list ~sep pp_element) t
   | [] -> ()
+
+let rec pp_enum ?(sep="") pp_element fmt enum = match (Enum.get enum) with
+  | Some h -> Format.fprintf fmt "%a" pp_element h ; 
+	      begin match (Enum.peek enum) with
+		    | None -> ()
+		    | Some(h) -> Format.fprintf fmt "%s@,%a" sep (pp_enum ~sep pp_element) enum
+	      end
+  | None -> ()
 
 let rec pp_const fmt = function
   | Float f -> pp_print_float fmt f
