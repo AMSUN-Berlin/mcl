@@ -42,10 +42,14 @@ type value = VConst of const
 	   | VVec of value array
 	   | VHost of out_value * string
 
+and model_value = MEmpty
+		| MField of string * monad * model_value
+
 and monad = MGet of string 
 	   | MPut of string * value
 	   | MReturn of value 
 	   | MChain of string * monad * expr
+	   | MNew of model_value
 
 let unit_val = VVec([||])
 
@@ -60,6 +64,12 @@ let rec pp_val fmt = function
   | VAdt(a, vs) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_val) vs
   | VObj ms -> fprintf fmt "@[⦃%a⦄@]" (pp_enum ~sep:";" pp_field) (StrMap.enum ms)
 
+and pp_model_val fmt = fprintf fmt "[@{%a}@]" pp_model_val' 
+
+and pp_model_val' fmt = function
+  | MEmpty -> ()
+  | MField(x, m, v) -> fprintf fmt "@[%s@ ⇐@ %a; %a@]" x pp_monad m pp_model_val' v
+		      
 and pp_monad fmt = function
   | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
   | MPut (l, v) -> fprintf fmt "@[%s•put@ %a@]" l pp_val v
@@ -68,6 +78,14 @@ and pp_monad fmt = function
 
 let val2str v = 
   (pp_val Format.str_formatter v) ;
+  Format.flush_str_formatter ()
+
+let mval2str v = 
+  (pp_model_val Format.str_formatter v) ;
+  Format.flush_str_formatter ()
+
+let monad2str v = 
+  (pp_monad Format.str_formatter v) ;
   Format.flush_str_formatter ()
 
 let ident x = {Asttypes.txt = Longident.Lident x ; loc = Location.none}
@@ -84,6 +102,12 @@ and lift_value = function
   | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
   | VMonad (m) -> lift_monad m 
   | VHost (_, x) -> Host (Ast_helper.Exp.ident  (ident x))
+
+and lift_model_value_fields = function
+  | MEmpty -> []
+  | MField(x, m, f) -> Named(x, lift_monad m)::(lift_model_value_fields f)
+
+let lift_model_value f = Model(lift_model_value_fields f)
         
 let error_expected op exp got =
   VConst( Err ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) )
@@ -92,10 +116,25 @@ module StrSet = Set.Make(String)
 
 let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 
+let rec append_fields fst snd = match fst with
+    MEmpty -> snd
+  | MField(x,m,f) -> MField(x, m, append_fields f snd)
+
+let prepend x mv f = MField(x, mv, f)
+
+open Result.Infix
+let (>>|) r f = r >>= (fun a -> Result.Ok(f a))
+
+let merror_expected op exp got =
+  Result.Bad ( Printf.sprintf "in '%s' expected: %s but got: '%s'" op exp got ) 
 
 let rec pass_error e f = match eval e with
   | VConst(Err msg) as err -> err
   | _ as v -> f v
+
+and m_lift_error e = match eval e with
+  | VConst(Err msg) -> Result.Bad msg
+  | _ as v -> Result.Ok (v)
 
 and eval_array es vs i = if i < (Array.length es) then
 			   pass_error es.(i) (fun v -> (vs.(i) <- v ; eval_array es vs (i+1)))
@@ -193,14 +232,47 @@ and eval = function
 
   | _ as exp -> VConst (Err (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (expr2str exp)))
 
-(*
-and meval = function
-  | Model(fds) ->
-  | MLet (x, m, m') -> 
-  | MState (x, e, m) ->
-  | MModify (x, e, m) ->
-  | _ as m -> VConst (Err (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (m2str m)))
- *)
+and meval_fields mods = function
+  | [] -> Result.Ok MEmpty
+
+  | Named(x, e)::r -> m_lift_error e >>= (function
+                                           | VMonad mv -> (meval_fields mods r) >>| (prepend x mv)
+				           | _ as v -> merror_expected (expr2str e) "monad value" (val2str v)
+				         )
+
+  | (Unnamed e)::r -> m_lift_error e >>= (function
+				           | VMonad mv -> (meval_fields mods r) >>| (prepend "" mv)
+				           | _ as v -> merror_expected (expr2str e) "monad value" (val2str v)
+				         )
+
+  | Replaceable(x, e)::r when StrMap.mem x mods -> begin 
+						   match (StrMap.find x mods) with
+						   | VMonad mv -> (meval_fields mods r) >>| (prepend "" mv)
+						   | _ as v -> merror_expected ("modification for " ^ x) "monad value" (val2str v)
+						 end
+
+  | Replaceable(x,e)::r -> m_lift_error e >>= (function
+					        | VMonad mv -> (meval_fields mods r) >>| (prepend x mv)
+					        | _ as v -> merror_expected (expr2str e) "monad value" (val2str v)
+					      )
+
+  | (Extend m)::r -> (meval mods m) >>= (fun mv -> (meval_fields mods r) >>| (append_fields mv))		                        
+
+and meval mods = function
+  | Model(fds) -> meval_fields StrMap.empty fds 
+
+  | MLet (x, m, m') -> meval StrMap.empty m >>= (fun mv ->
+                                                 meval mods (m_subst_m x (lift_model_value mv) m') )
+
+  | MState (x, e, m) -> meval mods m >>= (fun mv -> (m_lift_error e >>| (fun v -> MField ("", MPut(x, v), mv))))
+  
+  | MModify (x, e, m) -> let v = eval e in meval (StrMap.add x v mods) m 
+  
+  | _ as m -> Result.Bad (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (model2str m))
+
+let write_value output v = BatIO.write_string output (val2str v)
+
+let state2str = BatIO.to_string (StrMap.print ~first:"{" ~last:"}" ~sep:";" ~kvsep:" = " BatIO.write_string write_value)
 
 let rec elab s = function
   | MReturn(v) -> (s, v)
