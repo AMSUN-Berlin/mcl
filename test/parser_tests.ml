@@ -101,6 +101,7 @@ let test_cases = [
 
   model "{}" (Model([]));
   model "{1}" (Model([Unnamed (Const(Int 1))]));
+  expr "new {1}" (New (Model([Unnamed (Const(Int 1))])));
   model "{1;2;3}" (Model([Unnamed (Const(Int 1)) ; Unnamed (Const(Int 2)) ; Unnamed (Const(Int 3))]));
   model "{extend {}}" (Model([Extend(Model [])])) ;
   model "{extend {} ; x ⇐ u}" (Model([Extend(Model []); Named("x", Var("u"))])) ;
