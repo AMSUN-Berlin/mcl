@@ -34,7 +34,8 @@ let suite = "MCL" >:::
 		Parser_tests.suite ; 
 		Eval_tests.subst_suite ;
 		Eval_tests.suite ;
-		Compiler_tests.suite 
+		Compiler_tests.suite ;
+                Elab_tests.suite ;
 	      ]
 		
 let _ =

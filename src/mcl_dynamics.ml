@@ -37,7 +37,7 @@ module StrMap = Map.Make(String)
 type value = VConst of const
 	   | VAbs of string * expr
 	   | VAdt of string * (value list)
-	   | VObj of (expr StrMap.t)
+	   | VObj of (value StrMap.t)
 	   | VMonad of monad
 	   | VVec of value array
 	   | VHost of out_value * string
@@ -53,9 +53,9 @@ and monad = MGet of string
 
 let unit_val = VVec([||])
 
-let rec pp_field fmt (x,e) = fprintf fmt "%s@ =@ %a" x pp_expr e
+let rec pp_field fmt (x,e) = fprintf fmt "%s@ =@ %a" x pp_val e
 
-let rec pp_val fmt = function 
+and pp_val fmt = function 
   | VHost(v,_) -> fprintf fmt "⟪%a⟫" (!Oprint.out_value) v
   | VConst c -> fprintf fmt "@[%a@]" pp_const c
   | VAbs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
@@ -286,6 +286,11 @@ let rec elab s = function
        | VMonad(m') -> elab s' m'
        | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
      end
+
+let start_elab e = match (eval e) with 
+  | VConst(Err e) -> (StrMap.empty, VConst(Err e))
+  | VMonad(m) -> elab StrMap.empty m 
+  | _ as v -> (StrMap.empty, error_expected (expr2str e) "monadic value" (val2str v))
 
 open Outcometree
 
