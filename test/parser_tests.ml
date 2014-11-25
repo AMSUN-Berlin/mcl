@@ -108,6 +108,8 @@ let test_cases = [
   model "{x ⇐ u}" (Model([Named("x", Var("u"))])) ;
   model "{replaceable x ⇐ u}" (Model([Replaceable("x", Var("u"))])) ;
   model "replace x with y in m" (MModify("x", Var("y"), MVar("m"))) ;
+
+  expr "return 1" (Return ( Const (Int 1))) ;
 ]
 						  
 let suite = "Parser" >::: test_cases

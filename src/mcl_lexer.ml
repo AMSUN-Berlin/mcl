@@ -166,6 +166,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | "model" -> MODEL
     | "state" -> STATE
     | "with" -> WITH
+    | "return" -> RETURN
     | 0x03BB ->  ( LAMBDA ) 
     | 0x005B ->  LBRACKET 
     | 0x005D ->  RBRACKET

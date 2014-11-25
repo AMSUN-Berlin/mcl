@@ -230,7 +230,14 @@ and eval = function
 			     | _ as v -> error_expected (expr2str e1) "monadic value" (val2str v) 
 		       end
 
+  | New (me) -> begin match (meval nomods me) with
+                      | Result.Bad(e) -> VConst(Err(e))
+                      | Result.Ok(mv) -> VMonad(MNew(mv))
+                end
+
   | _ as exp -> VConst (Err (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (expr2str exp)))
+
+and nomods = StrMap.empty
 
 and meval_fields mods = function
   | [] -> Result.Ok MEmpty

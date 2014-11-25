@@ -54,6 +54,8 @@ let samples = [
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 2",  VConst(Int(2)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 3",  VConst(Int(6)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 6",  VConst(Int(720)));
+
+  ("return 1", VMonad(MReturn(VConst(Int(1)))));
 ]
 
 let test_case (input, expected) =

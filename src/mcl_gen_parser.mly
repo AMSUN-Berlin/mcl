@@ -120,6 +120,8 @@ expr:
     { App((Host(lift_ident "~-")), e) }
 | NEW me = model
     { New(me) }
+| RETURN e = expr 
+    { Return e }
 
 | LET x = IDENT EQ e1 = expr IN e2 = expr 
     { Let(x,e1,e2) }
