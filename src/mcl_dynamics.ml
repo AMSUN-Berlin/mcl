@@ -53,6 +53,19 @@ and monad = MGet of string
 
 let unit_val = VVec([||])
 
+let rec monad_subst x e = function
+    MGet l -> MGet l
+  | MPut (l, e') -> MPut(l, e')
+  | MReturn(e') -> MReturn e'
+  | MChain(y, m, e) when y = x -> MChain(y, m, e)
+  | MChain(y, m, e) -> MChain(y, monad_subst x e m, subst x e e)
+  | MNew(mv) -> MNew(mv_subst x e mv)
+
+and mv_subst x e =  function 
+    MEmpty -> MEmpty
+  | MField(y, m, mv) when y = x -> MField(y, m, mv)
+  | MField(y, m, mv) -> MField(y, monad_subst x e m, mv_subst x e mv)
+
 let rec pp_field fmt (x,e) = fprintf fmt "%s@ =@ %a" x pp_val e
 
 and pp_val fmt = function 
@@ -71,6 +84,7 @@ and pp_model_val' fmt = function
   | MField(x, m, v) -> fprintf fmt "@[%s@ ⇐@ %a; %a@]" x pp_monad m pp_model_val' v
 		      
 and pp_monad fmt = function
+  | MNew(mv) -> fprintf fmt "@[new@ %a@]" pp_model_val mv
   | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
   | MPut (l, v) -> fprintf fmt "@[%s•put@ %a@]" l pp_val v
   | MGet (l) -> fprintf fmt "@[%s•get@]" l
@@ -293,6 +307,20 @@ let rec elab s = function
        | VMonad(m') -> elab s' m'
        | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
      end
+  | MNew(mv) -> begin match (elab_mv s StrMap.empty mv) with
+                | Result.Bad (s', e) -> (s', VConst(Err(e)))
+                | Result.Ok (s', fds) -> (s', VObj(fds))
+                end
+
+and elab_mv s fds = function
+    MField(x, m, mv) -> begin match elab s m with
+                              | (s, VConst(Err(e))) -> Result.Bad (s, e)
+                              | (s', v) -> (elab_mv s' (StrMap.add x v fds)
+                                                    (mv_subst x (lift_value v) mv)
+                                           )                                   
+                        end
+  | MEmpty -> Result.Ok (s, fds)
+       
 
 let start_elab e = match (eval e) with 
   | VConst(Err e) -> (StrMap.empty, VConst(Err e))
