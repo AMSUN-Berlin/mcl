@@ -26,6 +26,7 @@
  *
  *)
 
+open Batteries
 open Mcl_gen_parser
 
 let name_of_token = function
@@ -94,6 +95,7 @@ type tokplus = {
 type m_cursor = {
   mutable m_line : int;
   mutable m_bol : int;
+  mutable m_last : tokplus option;
 }
 
 open Sedlexing
@@ -111,15 +113,34 @@ let letter = [%sedlex.regexp? 'a'..'z'|'A'..'Z']
 let state_from_utf8_string input = {
   buf = Utf8.from_string input ;
   src = "test input" ; 
-  m_cursor = { m_line = 0; m_bol = 0 } }
+  m_cursor = { m_line = 0; m_bol = 0 ; m_last = None } }
+
+let pp_line_of {token; src; size; cursor={line;bol;char}} input =
+  let start = String.lchop ~n:bol input in
+  let line = try let (l, _) = String.split start "\n" in l with Not_found -> start in
+  let indicator = (String.repeat " " (char - bol)) ^ (String.repeat "^" size) in
+  line ^ "\n" ^ indicator
+
+let last_token { src; buf; m_cursor } = m_cursor.m_last
+
+let locate_last input { src; buf; m_cursor } = match m_cursor.m_last with 
+  | Some t -> pp_line_of t input 
+  | None -> "No token read."
+
+let white_space = [%sedlex.regexp? 
+                   0x09 | 0x0b | 0x0c | 0x20 | 0x85 | 0xa0 | 0x1680 |
+                   0x2000 .. 0x200a | 0x2028 .. 0x2029 | 0x202f.. 0x202f | 0x205f.. 0x205f |
+                   0x3000.. 0x3000]
 
 let next_token ( { src ; buf ; m_cursor } as ls ) =
-  let lift token = { token ; src ; size = lexeme_length buf; cursor = 
+  let lift token = let tok = { token ; src ; size = lexeme_length buf; cursor = 
 							       { line = m_cursor.m_line ; 
 								 bol = m_cursor.m_bol ; 
 								 char = lexeme_start buf ;
 							       } 
-		   } in
+		             } 
+                   in m_cursor.m_last <- Some tok ; tok
+  in
 
   let current _ = Utf8.lexeme buf in
 
@@ -129,8 +150,18 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | _ -> failwith "Unexpected character"
   in
 
+  let newline () =
+    m_cursor.m_line <- (m_cursor.m_line + 1) ;
+    m_cursor.m_bol <- Sedlexing.lexeme_end buf
+  in
+
   let rec token () =
     match%sedlex buf with
+    | "\r\n" -> newline () ; token ()
+    | '\n' -> newline () ; token ()
+    | '\r' -> newline () ; token ()
+    | Plus ( white_space ) -> token ()
+    | eof ->  ( EOF )
     | ';' -> SEMICOLON
     | '(' ->  LPAREN 
     | ')' ->  RPAREN
@@ -149,8 +180,6 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | number, '.', Opt( number ), Opt ( 'e', number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
     | '.' ->  ( DOT )
     | number ->  ( INT ( int_of_string (current () ) ))
-    | Plus ( white_space ) -> token ()
-    | eof ->  ( EOF )
     | "if" -> IF
     | "then" -> THEN
     | "else" -> ELSE

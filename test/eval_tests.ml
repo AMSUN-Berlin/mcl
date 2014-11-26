@@ -33,12 +33,6 @@ open Mcl_lexer
 open Mcl_pp
 open Mcl_dynamics
 
-let rec parse ucs = 
-  let next () = next_token ucs in    
-  expr_parser "test" next
-
-let test_eval (ucs, expected) = assert_equal ~msg:"equality" ~printer:val2str expected (eval (parse ucs))
-
 let samples = [
   ("42", VConst(Int(42)) );
   ("42.", VConst(Float(42.)) );
@@ -59,11 +53,9 @@ let samples = [
 ]
 
 let test_case (input, expected) =
-  let teardown _ = () in
-  let setup () = (state_from_utf8_string input, expected)
-  in
-  (Printf.sprintf "test evaluating '%s'" input) >:: (bracket setup test_eval teardown)
-
+  (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input
+                                                                            (fun e -> assert_equal ~msg:"equality" ~printer:val2str expected (eval (e))))
+                                                      
 let test_subst (i,x,s,ex) = assert_equal ~msg:"equality" ~printer:expr2str ex (subst x (lift_value s) i)
 
 let subst_samples = [

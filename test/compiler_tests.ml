@@ -35,10 +35,6 @@ open Mcl_pp
 open Mcl_ocaml
 open Mcl_dynamics
 
-let rec parse ucs = 
-  let next () = next_token ucs in    
-  expr_parser "test" next
-
 let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 
 let eval e = 
@@ -50,7 +46,8 @@ let eval e =
     end
   | None -> VConst(Err("Error loading OCaml interpreter"))
 
-let test_eval (ucs, expected) = assert_equal ~msg:"equality" ~printer:val2str expected (eval (parse ucs))
+let test_case (input, expected) =
+  (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality" ~printer:val2str expected (eval e)))
 
 let samples = [
   ("42", VConst(Int(42)) );
@@ -70,12 +67,6 @@ let samples = [
 
   ("let foo = None in match foo with None -> 1 | Some d -> d in foo", VConst(Int(1)));
 ]
-
-let test_case (input, expected) =
-  let teardown _ = () in
-  let setup () = (state_from_utf8_string input, expected)
-  in
-  (Printf.sprintf "test evaluating '%s'" input) >:: (bracket setup test_eval teardown)
 						  
 let suite = "Compiler" >:::	      
 	      ( List.map test_case samples )

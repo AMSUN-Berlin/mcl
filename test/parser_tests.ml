@@ -69,17 +69,26 @@ and prep_model = function
 
 let lift_ident = Mcl_ocaml.lift_ident
 
-let expr input expected = 
+let expr_test input f =
   let ucs = state_from_utf8_string input in
   let next () = next_token ucs in
-  (Printf.sprintf "test parsing '%s'" input) >:: 
-    fun () -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr (expr_parser "test" next)) 
+  let loc () = locate_last input ucs in
+  fun () ->
+  try
+    f (expr_parser "test" next loc)
+  with 
+    SyntaxError e -> assert_failure e
+
+let expr input expected = 
+  (Printf.sprintf "test parsing '%s'" input) >::      
+    expr_test input (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) 
   
 let model input expected = 
   let ucs = state_from_utf8_string input in
   let next () = next_token ucs in
+  let loc () = locate_last input ucs in
   (Printf.sprintf "test parsing '%s'" input) >:: 
-    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next))
+    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next loc))
 
 let test_cases = [ 
   expr "1.234" (Const(Float(1.234)));

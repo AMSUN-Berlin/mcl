@@ -42,8 +42,15 @@ let get_end src {cursor ; size} = {Lexing.pos_fname = src ;
 				   Lexing.pos_bol = cursor.bol ;
 				   Lexing.pos_cnum = cursor.char + size;
 				  }
-			       
-let expr_parser src = MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.sole_expr
 
-let model_parser src = MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.main
+exception SyntaxError of string
+
+let guard parser next locate = try parser next  
+                             with
+                               Mcl_gen_parser.Error -> raise ( SyntaxError ( locate () ) )
+
+let expr_parser src = guard (MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.sole_expr)
+
+
+let model_parser src = guard (MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.main )
 

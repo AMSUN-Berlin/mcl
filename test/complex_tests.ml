@@ -110,7 +110,15 @@ let parse {name ; input} =
   let ucs = state_from_utf8_string input in
   let next () = next_token ucs in
   (Printf.sprintf "Test parsing '%s'" name) >:: 
-    fun () -> ignore (expr_parser name next)
+    fun () -> ignore (
+                  try 
+                    expr_parser name next
+                  with
+                    Mcl_gen_parser.Error -> match last_token ucs with
+                                              Some(t) -> let line = pp_line_of t input in
+                                                         assert_failure ("Parsing Error:\n" ^ line)
+                                            | None ->  assert_failure ("Parsing Error. No token shifted.")
+                )
 
 let test_cases = [ 
   parse free_fall
