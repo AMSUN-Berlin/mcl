@@ -27,17 +27,32 @@
  *)
 
 open OUnit
-		  
-let suite = "MCL" >:::
-	      [
-		Lexer_tests.suite ;
-		Parser_tests.suite ; 
-		Eval_tests.subst_suite ;
-		Eval_tests.suite ;
-		Compiler_tests.suite ;
-                Elab_tests.suite ;
-                Complex_tests.suite ;
-	      ]
-		
-let _ =
-  run_test_tt_main suite
+open Batteries
+open Mcl_parser
+open Mcl
+open Mcl_lexer
+open Mcl_pp
+open Mcl_dynamics
+
+let rec parse ucs = 
+  let next () = next_token ucs in    
+  expr_parser "test" next
+
+let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
+
+let test_elab (ucs, expected) = assert_equal ~msg:"equality of elaboration" ~printer:elab2str expected (start_elab (parse ucs))
+
+let obj fds = VObj(StrMap.of_enum (List.enum fds))
+
+let samples = [
+  "new {x ⇐ return 1}" , (StrMap.empty, obj ["x", VConst(Int(1))]); 
+]
+
+let test_case (input, expected) =
+  let teardown _ = () in
+  let setup () = (state_from_utf8_string input, expected)
+  in
+  (Printf.sprintf "test evaluating '%s'" input) >:: (bracket setup test_elab teardown)
+						  
+let suite = "Interpreter" >:::	      
+	      ( List.map test_case samples )
