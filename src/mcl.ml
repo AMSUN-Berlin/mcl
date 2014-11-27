@@ -139,6 +139,11 @@ let rec subst x v = function
   | Bind(y, e1, e2) -> Bind(y, subst x v e1, subst x v e2)
   | Adt(a, es) -> Adt(a, List.map (subst x v) es)
   | Host e -> Host e
+  | Select(n, e) -> Select(n, subst x v e)
+  | Tup(es) -> Tup(List.map (subst x v) es)
+  | Update(e,i,u) -> Update(subst x v e, subst x v i, subst x v u)
+  | Length(e) -> Length(subst x v e)
+  | Method(y, e) -> Method(y, subst x v e)
 
 and subst_m x sm = function
   | Var y -> Var y

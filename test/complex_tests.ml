@@ -31,6 +31,7 @@ open Mcl_parser
 open Mcl
 open Mcl_lexer
 open Mcl_pp
+open Mcl_dynamics
 
 let explicit_linear_ode_modeling = "
 
@@ -87,10 +88,15 @@ let explicit_linear_ode_modeling = "
 type complex_test_case = {
   name : string ;
   input : string ;           
+  expected_state : value StrMap.t ;
+  expected_value : value;
 }
 
-let free_fall = { name = "free fall" ; input =
-  explicit_linear_ode_modeling ^ 
+let free_fall = { name = "free fall" ; 
+                  expected_state = StrMap.empty;
+                  expected_value = VConst(Float(10.)) ;
+                  input =
+                    explicit_linear_ode_modeling ^ 
     "
      h ← new_state ;
      v ← new_state ;
@@ -104,15 +110,20 @@ let free_fall = { name = "free fall" ; input =
 
      (* simulate for 10 seconds *)
      sim 0.0 10.0 
-    " }
+    " ;
+                }
 
 let parse {name ; input} = 
   (Printf.sprintf "Test parsing '%s'" name) >:: 
     Parser_tests.expr_test input (fun e -> ignore e)
+
+let elaborate {name ; input ; expected_state; expected_value} = 
+  (Printf.sprintf "Test elaborating '%s'" name) >:: 
+    Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str (expected_state,expected_value) (start_elab e))
                                  
 
 let test_cases = [ 
-  parse free_fall
+  elaborate free_fall
 ]
 
 let suite = "Complex Test Cases" >::: test_cases

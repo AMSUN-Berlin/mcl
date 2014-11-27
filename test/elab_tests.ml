@@ -34,9 +34,6 @@ open Mcl_lexer
 open Mcl_pp
 open Mcl_dynamics
 
-let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
-
-
 let test_elab (input, expected) =
   (Printf.sprintf "test evaluating '%s'" input) >:: (
     Parser_tests.expr_test input (

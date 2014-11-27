@@ -295,6 +295,8 @@ let write_value output v = BatIO.write_string output (val2str v)
 
 let state2str = BatIO.to_string (StrMap.print ~first:"{" ~last:"}" ~sep:";" ~kvsep:" = " BatIO.write_string write_value)
 
+let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
+
 let rec elab s = function
   | MReturn(v) -> (s, v)
   | MGet(l) -> (s, StrMap.find l s) (* TODO: error handling *)
