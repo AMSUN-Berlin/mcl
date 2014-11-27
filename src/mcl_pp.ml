@@ -69,7 +69,9 @@ and pp_expr fmt = function
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
   | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
   | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
-
+  | Length(e) -> fprintf fmt "@[#(%a)@]" pp_expr e
+  | Update(a,i,e) -> fprintf fmt "@[⟦%a@ with@ %a@ =@ %a⟧@]" pp_expr a pp_expr i pp_expr e
+                              
 and pp_fd fmt = function
   | Extend m -> fprintf fmt "@[extend %a@]" pp_model m
   | Replaceable(x, e) -> fprintf fmt "@[replaceable@ %s@ ⇐@ %a@]" x pp_expr e

@@ -57,6 +57,8 @@ and expr =
   (* data structures *)
   | Idx of expr * expr
   | Vec of expr array
+  | Length of expr
+  | Update of expr * expr * expr
   | Case of expr * (patt * expr) list
   | Adt of string * (expr list)
 		      
