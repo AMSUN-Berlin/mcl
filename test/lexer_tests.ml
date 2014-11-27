@@ -55,6 +55,7 @@ let samples = [
   (">< >=<=  <>", [GT;LT;GEQ;LEQ;NEQ]);
   ("⟦⟧[]", [LDBRACKET;RDBRACKET;LBRACKET;RBRACKET]);
   ("+-*/", [PLUS;MINUS;TIMES;DIV]);
+  ("+.-.*./.", [PLUSDOT;MINUSDOT;TIMESDOT;DIVDOT]);
   (" 1.234", [FLOAT(1.234)]);
   (" 1234", [INT(1234)]);
   ("x", [IDENT("x")]) ;

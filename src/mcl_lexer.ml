@@ -37,11 +37,17 @@ let name_of_token = function
   | RANGLE -> "RANGLE"
   | LAMBDA -> "LAMBDA"
   | BULLET -> "BULLET"
+
   | DOT -> "DOT"
   | PLUS -> "PLUS"
   | MINUS -> "MINUS"
   | TIMES -> "TIMES"
   | DIV -> "DIV"
+  | PLUSDOT -> "PLUSDOT"
+  | MINUSDOT -> "MINUSDOT"
+  | TIMESDOT -> "TIMESDOT"
+  | DIVDOT -> "DIVDOT"
+
   | SEMICOLON -> "SEMICOLON"
   | COMMA -> "COMMA"
   | THEN -> "THEN"
@@ -283,6 +289,8 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | '\r' -> newline () ; token ()
     | Plus ( mcl_white_space ) -> token ()
     | eof ->  ( EOF )
+
+    | ',' -> COMMA
     | ';' -> SEMICOLON
     | '(' ->  LPAREN 
     | ')' ->  RPAREN
@@ -293,6 +301,10 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | '*' ->  TIMES
     | '/' ->  DIV
     | '-' ->  MINUS
+    | "+." ->  PLUSDOT
+    | "*." ->  TIMESDOT
+    | "/." ->  DIVDOT
+    | "-." ->  MINUSDOT
     | '>' ->  GT
     | '<' ->  LT
     | ">=" -> GEQ
@@ -325,7 +337,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
 
     | "(*" -> terminate_comment 0
 
-    | mcl_id_start, Star ( id_continue ) -> ident_or_kw () 
+    | (mcl_id_start | '_'), Star ( id_continue | '\'' ) -> ident_or_kw () 
     | any -> failwith (Printf.sprintf "Unexpected character '%s'" (Sedlexing.Utf8.lexeme buf))
     | _ -> failwith "no match on 'any'. This cannot happen"
 					  

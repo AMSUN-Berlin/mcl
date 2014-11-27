@@ -31,16 +31,17 @@
 %token <float> FLOAT
 %token <string> IDENT
 %token <string> HOST
-%token PLUS MINUS TIMES DIV
+%token PLUS MINUS TIMES DIV PLUSDOT MINUSDOT TIMESDOT DIVDOT 
 %token EOF
 
 %token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH
 
-%nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE COMMA DOT
+%nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE 
+%left COMMA DOT
 %left SEMICOLON         /* lowest precedence */
 %left GT LT NEQ GEQ LEQ EQ 
-%left PLUS MINUS        /* medium precedence */
-%left TIMES DIV         
+%left PLUS MINUS PLUSDOT MINUSDOT     /* medium precedence */
+%left TIMES DIV TIMESDOT DIVDOT        
 %nonassoc UMINUS        /* highest precedence */
 %left app_prec          
 
@@ -61,6 +62,10 @@
 
   let bin_op op e1 e2 = 
     App(App((Host(lift_ident op)), e1), e2)
+
+  let rec make_lam b = function
+    | [] -> b
+    | x::args -> Abs(x, make_lam b args)
 %}
 
 %start <Mcl.model_expr> main
@@ -86,6 +91,10 @@ field:
 | x = IDENT DLEFTARROW e = expr { Named(x, e) }
 | REPLACEABLE x = IDENT DLEFTARROW e = expr { Replaceable(x, e) }
 
+expr_comma_list:
+    es=expr_comma_list COMMA e=expr    { e :: es }
+  | e1=expr COMMA e2=expr  { [e2;e2] }
+
 expr:
 | i = INT
     { Const (Int (i)) }
@@ -96,6 +105,11 @@ expr:
 | LPAREN e = expr RPAREN
     { e }
 | e1 = expr e2 = expr { App(e1, e2) } %prec app_prec
+
+| es = expr_comma_list { Tup(List.rev es) }
+
+| e = expr DOT n=INT { Select(n, e) } 
+
 | e1 = expr PLUS e2 = expr
     { bin_op "+" e1 e2 }
 | e1 = expr MINUS e2 = expr
@@ -104,6 +118,16 @@ expr:
     { bin_op "*" e1 e2 }
 | e1 = expr DIV e2 = expr
     { bin_op "/" e1 e2 }
+
+| e1 = expr PLUSDOT e2 = expr
+    { bin_op "+." e1 e2 }
+| e1 = expr MINUSDOT e2 = expr
+    { bin_op "-." e1 e2 }
+| e1 = expr TIMESDOT e2 = expr
+    { bin_op "*." e1 e2 }
+| e1 = expr DIVDOT e2 = expr
+    { bin_op "/." e1 e2 }
+
 
 | e1 = expr GT e2 = expr
     { bin_op ">" e1 e2 }
@@ -126,21 +150,22 @@ expr:
 | RETURN e = expr 
     { Return e }
 
-| LET x = IDENT EQ e1 = expr IN e2 = expr 
-    { Let(x,e1,e2) }
-| LET REC x = IDENT EQ e1 = expr IN e2 = expr
-    { Letrec(x, e1, e2) }
+| LET x = IDENT args = list (IDENT) EQ e1 = expr IN e2 = expr
+    { Let(x, make_lam e1 args, e2) }
+| LET REC x = IDENT args = list (IDENT) EQ e1 = expr IN e2 = expr
+    { Letrec(x, make_lam e1 args, e2) }
 | LAMBDA x = IDENT DOT e = expr 
     { Abs(x, e) }
 | IF c = expr THEN t = expr ELSE e = expr 
     { Cond(c,t,e) }
+| LDBRACKET e = expr WITH i = expr EQ u = expr RDBRACKET
+    { Update(e, i, u) }
 | LDBRACKET es = separated_list(SEMICOLON, expr) RDBRACKET
     { Vec(Array.of_list es) }
+
 | e = expr LBRACKET idx = expr RBRACKET 
     { Idx(e, idx) }
 
-| x = IDENT LANGLE es = separated_list(COMMA, expr) RANGLE
-    { Adt(x, es) }
 | x=IDENT BULLET GET 
     { Get(x) }
 | x=IDENT BULLET PUT e = expr 

@@ -49,7 +49,7 @@ let explicit_linear_ode_modeling = "
 
   let eval_equation t xs eq = 
     let rec eval_xs n = if n > #eq.2 then 0.0 else 
-                        xs[eq.2.1] *. eq.2.2 +. (eval_xs (n + 1))
+                        xs[eq.2 .1] *. eq.2 .2 +. (eval_xs (n + 1))
     in 
     t *. eq.1 +. (eval_xs 0) +. eq.3  
   in
@@ -72,12 +72,12 @@ let explicit_linear_ode_modeling = "
 
                   let t' = t +. dt in
                   let xs' = appl_step ds dt t' 0 xs in
-                  states•put xs ;
+                  void ← states•put xs ;
                   return t'
   in
 
   let rec sim t stop = if t >= stop then 
-                         states•get;                                   
+                         states•get                                   
                        else 
                          t' ← step t 0.01 ;
                          sim t' stop 
@@ -95,12 +95,12 @@ let free_fall = { name = "free fall" ; input =
      h ← new_state ;
      v ← new_state ;
      xs ← states•get ;
-     states•put ⟦xs with h = 10.0⟧ ;
+     void ← states•put ⟦xs with h = 10.0⟧ ;
      (* dv = -9.81 *) 
-     add_equation 0.0 ⟦⟧ -9.81 v ;
+     _ ← add_equation 0.0 ⟦⟧ -9.81 v ;
      
      (* dh = v *)
-     add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
+     _ ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
 
      (* simulate for 10 seconds *)
      sim 0.0 10.0 

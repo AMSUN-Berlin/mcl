@@ -104,10 +104,12 @@ let test_cases = [
   expr "⟪(>)⟫ (-1) 2" (App(App(Host(lift_ident ">"), App(Host(lift_ident "~-"), Const(Int(1)))), Const(Int(2)))) ;
   expr " 1234" (Const(Int(1234)));
   expr " 1.234" (Const(Float(1.234)));
+
   expr "let x = 42 in x" (Let("x", Const(Int(42)), Var("x")));
   expr "let x = λx.x in x" (Let("x", Abs("x", Var("x")), Var("x")));
   expr "let rec x = λx.x in x" (Letrec("x", Abs("x", Var("x")), Var("x")));
   expr "let f = ⟪(+)⟫ 40 in f 2" (Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+  expr "let add a b = a + b in 42" (Let("add", Abs("a",Abs("b", App(App(Host(lift_ident "+"), Var("a")), Var("b")))), Const(Int(42))));
 
   expr "xs ← states•get ; x" (Bind("xs", Get("states"), Var("x"))) ;
   expr "xs ← states•put ⟦⟧ ; x" (Bind("xs", Put("states", Vec([||])), Var("x"))) ;

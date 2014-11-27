@@ -55,6 +55,8 @@ and expr =
   | Cond of expr * expr * expr
 	 
   (* data structures *)
+  | Tup of expr list 
+  | Select of int * expr
   | Idx of expr * expr
   | Vec of expr array
   | Length of expr
