@@ -36,10 +36,11 @@
 
 %token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH
 
-%nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE SEMICOLON COMMA DOT
+%nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE COMMA DOT
+%left SEMICOLON         /* lowest precedence */
 %left GT LT NEQ GEQ LEQ EQ 
-%left PLUS MINUS        /* lowest precedence */
-%left TIMES DIV         /* medium precedence */
+%left PLUS MINUS        /* medium precedence */
+%left TIMES DIV         
 %nonassoc UMINUS        /* highest precedence */
 %left app_prec          
 
@@ -137,6 +138,7 @@ expr:
     { Vec(Array.of_list es) }
 | e = expr LBRACKET idx = expr RBRACKET 
     { Idx(e, idx) }
+
 | x = IDENT LANGLE es = separated_list(COMMA, expr) RANGLE
     { Adt(x, es) }
 | x=IDENT BULLET GET 
@@ -147,5 +149,6 @@ expr:
     { Bind(x, e, e2) }
 | RETURN e = expr 
     { Return(e) }
+
 | h = HOST { Host ( Parse.expression (Lexing.from_string h)) }
 

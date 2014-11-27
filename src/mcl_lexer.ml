@@ -237,21 +237,7 @@ let state_from_utf8_string input = {
   src = "test input" ; 
   m_cursor = { m_line = 0; m_bol = 0 ; m_last = None } }
 
-let error_message size {line; bol; char} input =
-  let start = String.lchop ~n:bol input in
-  let line = try let (l, _) = String.split start "\n" in l with Not_found -> start in
-  let indicator = (String.repeat " " (char - bol)) ^ (String.repeat "^" size) in
-  line ^ "\n" ^ indicator
-
-let pp_line_of {token; src; size; cursor={line;bol;char}} input =
-  error_message size {line; bol; char} input
-
 let last_token { src; buf; m_cursor } = m_cursor.m_last
-
-let locate_last input { src; buf; m_cursor } = match m_cursor.m_last with 
-  | Some t -> pp_line_of t input 
-  | None -> "No token read."
-
 
 let next_token ( { src ; buf ; m_cursor } as ls ) =
   let lift token = let tok = { token ; src ; size = lexeme_length buf; cursor = 
@@ -267,7 +253,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
 
   let newline () =
     m_cursor.m_line <- (m_cursor.m_line + 1) ;
-    m_cursor.m_bol <- Sedlexing.lexeme_end buf
+    m_cursor.m_bol <- Sedlexing.lexeme_end buf ;
   in
 
   let ident_or_kw () = match (Sedlexing.Utf8.lexeme buf) with

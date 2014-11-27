@@ -37,7 +37,7 @@ let explicit_linear_ode_modeling = "
   (* states are simply numbered *)                           
   let new_state = xs ← states•get ; 
                   let j = #xs in
-                  states•put ⟦xs append 0.0⟧ ;                                    
+                  void ← states•put ⟦xs append 0.0⟧ ;                                    
                   return j
   in
   

@@ -26,7 +26,6 @@
  *
  *)
 
-open Batteries
 open Mcl_lexer
 
 let get_token {token} = token 
@@ -43,14 +42,34 @@ let get_end src {cursor ; size} = {Lexing.pos_fname = src ;
 				   Lexing.pos_cnum = cursor.char + size;
 				  }
 
-exception SyntaxError of string
+type syntax_error = {
+  line : int ;
+  char : int ;
+  bol : int;
+  width : int;
+} [@@deriving show]
 
-let guard parser next locate = try parser next  
+exception SyntaxError of syntax_error
+
+open Batteries
+
+let locate = function
+    Some ( {token; size; cursor = {line;char;bol}} ) -> { width=size; line; char; bol }
+  | None -> { width=1; line=0; char=0; bol=0 }
+
+let guard parser next last = try parser next  
                              with
-                               Mcl_gen_parser.Error -> raise ( SyntaxError ( locate () ) )
+                               Mcl_gen_parser.Error -> raise ( SyntaxError ( locate (last ()) ) )
 
 let expr_parser src = guard (MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.sole_expr)
 
 
 let model_parser src = guard (MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.main )
+
+let error_message {line; bol; char; width} input =
+  let t = Text.of_string input in
+  let start = Text.slice ~first:bol t in
+  let line = try let (l, _) = Text.split start (Text.of_string "\n") in l with Not_found -> start in
+  let indicator = (String.repeat " " (char - bol)) ^ (String.repeat "^" width) in
+  (Text.to_string line) ^ "\n" ^ indicator
 

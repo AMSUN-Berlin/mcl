@@ -38,11 +38,9 @@ let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
 
 
 let test_elab (input, expected) =
-  let ucs = state_from_utf8_string input in
-  let next () = next_token ucs in
-  let loc () = locate_last input ucs in
   (Printf.sprintf "test evaluating '%s'" input) >:: (
-    fun () -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str expected (start_elab (expr_parser "test" next loc)))
+    Parser_tests.expr_test input (
+    fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str expected (start_elab e)))
 
 let obj fds = VObj(StrMap.of_enum (List.enum fds))
 

@@ -72,12 +72,12 @@ let lift_ident = Mcl_ocaml.lift_ident
 let expr_test input f =
   let ucs = state_from_utf8_string input in
   let next () = next_token ucs in
-  let loc () = locate_last input ucs in
+  let last () = last_token ucs in
   fun () ->
   try
-    f (expr_parser "test" next loc)
+    f (expr_parser "test" next last)
   with 
-    SyntaxError e -> assert_failure e
+    SyntaxError e -> assert_failure (Printf.sprintf "Syntax Error at %s:\n%s" (show_syntax_error e) (error_message e input))
 
 let expr input expected = 
   (Printf.sprintf "test parsing '%s'" input) >::      
@@ -86,9 +86,9 @@ let expr input expected =
 let model input expected = 
   let ucs = state_from_utf8_string input in
   let next () = next_token ucs in
-  let loc () = locate_last input ucs in
+  let last () = last_token ucs in
   (Printf.sprintf "test parsing '%s'" input) >:: 
-    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next loc))
+    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next last))
 
 let test_cases = [ 
   expr "1.234" (Const(Float(1.234)));
@@ -108,6 +108,9 @@ let test_cases = [
   expr "let x = λx.x in x" (Let("x", Abs("x", Var("x")), Var("x")));
   expr "let rec x = λx.x in x" (Letrec("x", Abs("x", Var("x")), Var("x")));
   expr "let f = ⟪(+)⟫ 40 in f 2" (Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
+
+  expr "xs ← states•get ; x" (Bind("xs", Get("states"), Var("x"))) ;
+  expr "xs ← states•put ⟦⟧ ; x" (Bind("xs", Put("states", Vec([||])), Var("x"))) ;
 
   model "{}" (Model([]));
   model "{1}" (Model([Unnamed (Const(Int 1))]));
