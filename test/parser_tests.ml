@@ -93,6 +93,7 @@ let model input expected =
 let test_cases = [ 
   expr "1.234" (Const(Float(1.234)));
   expr "x" (Var("x")) ;
+  expr "new_foo" (Var "new_foo");
   expr "λx.x" (Abs("x", Var("x"))) ;
   expr "let v = ⟦1⟧ in v[0]" (Let("v", Vec([| Const(Int(1)) |]), Idx(Var("v"), Const(Int(0))) ));
   expr "x x" (App(Var("x"), Var("x"))) ;

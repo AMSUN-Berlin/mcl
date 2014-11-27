@@ -51,13 +51,14 @@ let rec tokenize ls = function
 let test_lexing (ls, toks) = tokenize ls toks
 
 let samples = [ 
-  ("λ", [LAMBDA]);
+  ("λ", [LAMBDA]);  
   (">< >=<=  <>", [GT;LT;GEQ;LEQ;NEQ]);
   ("⟦⟧[]", [LDBRACKET;RDBRACKET;LBRACKET;RBRACKET]);
   ("+-*/", [PLUS;MINUS;TIMES;DIV]);
   (" 1.234", [FLOAT(1.234)]);
   (" 1234", [INT(1234)]);
   ("x", [IDENT("x")]) ;
+  ("new_foo", [IDENT("new_foo")]);
   ("x2", [IDENT("x2")]);
   ("x y", [IDENT "x"; IDENT "y"]) ;
   ("x 2 x 3. x", [IDENT "x"; INT 2; IDENT "x"; FLOAT 3.; IDENT "x"]) ;
