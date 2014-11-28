@@ -226,6 +226,31 @@ and eval = function
 				   | _ as v -> error_expected (expr2str e1) "vector value" (val2str v)
 				 )
 
+  | Length(e) -> pass_error e (function
+                                | VVec(vs) -> VConst(Int(Array.length vs))
+                                | _ as v -> error_expected (expr2str e) "array value" (val2str v)
+                              )
+
+  | Update(e, i, u) ->
+     let eval_update2 vs n u = pass_error u (fun v -> 
+                                             if n = (Array.length vs) then 
+                                               VVec(Array.append vs [|v|])
+                                             else
+                                               let vs' = Array.copy vs in
+                                               vs'.(n) <- v ; VVec(vs') 
+                                            )
+     in
+     let eval_update1 vs i u = pass_error i (function 
+                                              | VConst(Int(n)) when n >= 0 && n <= (Array.length vs) -> eval_update2 vs n u
+                                              | _ as v -> error_expected (expr2str e) "index value" (val2str v)
+                                            )
+     in
+ 
+     pass_error e (function
+                    | VVec(vs) -> eval_update1 vs i u
+                    | _ as v -> error_expected (expr2str e) "array value" (val2str v)
+                  )
+
   | Get(l) -> VMonad(MGet(l))
 
   | Put(l, e) -> begin match eval e with

@@ -35,10 +35,14 @@ open Mcl_dynamics
 
 let explicit_linear_ode_modeling = "
 
+  let prepare = void ← states•put ⟦⟧ ; 
+                equations•put ⟦⟧
+  in
+
   (* states are simply numbered *)                           
   let new_state = xs ← states•get ; 
                   let j = #xs in
-                  void ← states•put ⟦xs append 0.0⟧ ;                                    
+                  void ← states•put ⟦xs with j = 0.0⟧ ;                                    
                   return j
   in
   
@@ -92,6 +96,13 @@ type complex_test_case = {
   expected_value : value;
 }
 
+let new_state = { name = "new state" ;
+                  expected_state =  StrMap.add "equations" (VVec [||]) 
+                                               (StrMap.add "states" (VVec [|VConst(Float(42.0))|]) StrMap.empty);
+                  expected_value = VConst(Int(0));
+                  input = explicit_linear_ode_modeling ^                            
+                            "void  ← prepare ; h ← new_state ; xs ← states•get ; void ← states•put ⟦xs with h = 42.0⟧ ; return h"}
+
 let free_fall = { name = "free fall" ; 
                   expected_state = StrMap.empty;
                   expected_value = VConst(Float(10.)) ;
@@ -123,7 +134,8 @@ let elaborate {name ; input ; expected_state; expected_value} =
                                  
 
 let test_cases = [ 
-  elaborate free_fall
+  elaborate new_state ;
+  (* elaborate free_fall ; *)
 ]
 
 let suite = "Complex Test Cases" >::: test_cases
