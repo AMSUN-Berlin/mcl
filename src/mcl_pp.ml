@@ -67,7 +67,7 @@ and pp_expr fmt = function
   | Get(l) -> fprintf fmt "@[%s•get@]" l
   | Put(l, e) -> fprintf fmt "@[%s•put@ %a@]" l pp_expr e
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
-  | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
+  | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a@]" x pp_expr e1 pp_expr e2
   | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
   | Length(e) -> fprintf fmt "@[#(%a)@]" pp_expr e
   | Update(a,i,e) -> fprintf fmt "@[⟦%a@ with@ %a@ =@ %a⟧@]" pp_expr a pp_expr i pp_expr e
@@ -91,11 +91,13 @@ and pp_pat fmt ((a, xs), e) =
   fprintf fmt "@[|@ [@%s⟨%a⟩@]@ →@ %a@]" a (pp_list pp_print_string) xs pp_expr e
 
 
-let expr2str e = 
-  (pp_expr Format.str_formatter e) ;
-  Format.flush_str_formatter ()
+let expr2str ?max:(n=8) e = 
+  pp_set_max_boxes str_formatter n ;
+  (pp_expr str_formatter e) ;
+  flush_str_formatter ()
 
-let model2str m = 
-  (pp_model Format.str_formatter m) ;
-  Format.flush_str_formatter ()
+let model2str ?max:(n=8) m = 
+  pp_set_max_boxes str_formatter n ;
+  (pp_model str_formatter m) ;
+  flush_str_formatter ()
 

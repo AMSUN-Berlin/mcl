@@ -132,10 +132,9 @@ let elaborate {name ; input ; expected_state; expected_value} =
   (Printf.sprintf "Test elaborating '%s'" name) >:: 
     Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str (expected_state,expected_value) (start_elab e))
                                  
-
 let test_cases = [ 
   elaborate new_state ;
-  (* elaborate free_fall ; *)
+  elaborate free_fall ;
 ]
 
 let suite = "Complex Test Cases" >::: test_cases

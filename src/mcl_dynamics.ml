@@ -88,17 +88,20 @@ and pp_monad fmt = function
   | MReturn v -> fprintf fmt "@[return@ %a@]" pp_val v
   | MPut (l, v) -> fprintf fmt "@[%s•put@ %a@]" l pp_val v
   | MGet (l) -> fprintf fmt "@[%s•get@]" l
-  | MChain (x, m, e) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_monad m pp_expr e
+  | MChain (x, m, e) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a@]" x pp_monad m pp_expr e
 
-let val2str v = 
+let val2str ?max:(n=4) v = 
+  Format.pp_set_max_boxes Format.str_formatter n ;
   (pp_val Format.str_formatter v) ;
   Format.flush_str_formatter ()
 
-let mval2str v = 
+let mval2str ?max:(n=4) v = 
+  Format.pp_set_max_boxes Format.str_formatter n ;
   (pp_model_val Format.str_formatter v) ;
   Format.flush_str_formatter ()
 
-let monad2str v = 
+let monad2str ?max:(n=4) v =
+  Format.pp_set_max_boxes Format.str_formatter n ;
   (pp_monad Format.str_formatter v) ;
   Format.flush_str_formatter ()
 
