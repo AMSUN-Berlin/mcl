@@ -222,7 +222,7 @@ and eval = function
 				   | VVec(vs) ->
 				      pass_error e2 (function						      
 						      | VConst(Int(idx)) when idx >= (Array.length vs) || idx < 0 -> 
-							 error_expected (expr2str e2) "valid index" (string_of_int idx)
+							 error_expected (expr2str e2) ("valid index for '" ^ (expr2str e1) ^ "'") (string_of_int idx)
 						      | VConst(Int(idx)) -> vs.(idx)
 						      | _ as v -> error_expected (expr2str e2) "int value" (val2str v)
 						    )
@@ -327,15 +327,20 @@ let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
 
 let rec elab s = function
   | MReturn(v) -> (s, v)
-  | MGet(l) -> (s, StrMap.find l s) (* TODO: error handling *)
+  | MGet(l) when StrMap.mem l s -> (s, StrMap.find l s) (* TODO: error handling *)
+  | MGet(l) -> (s, VConst(Err("No state '" ^ l ^ "' found.") ))
   | MPut(l, v) -> (StrMap.add l v s, VVec( [| |] ) ) (* TODO: error handling *)
   | MChain(x, m, e) -> 
-     let (s', v) = elab s m in 
      begin
-       match eval (subst x (lift_value v) e) with
-       | VConst(Err msg) -> (s, VConst(Err msg))
-       | VMonad(m') -> elab s' m'
-       | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
+     match elab s m with 
+     | (s, VConst(Err(e))) -> (s, VConst(Err(e)))
+     | (s', v) ->
+        begin
+          match eval (subst x (lift_value v) e) with
+          | VConst(Err msg) -> (s, VConst(Err msg))
+          | VMonad(m') -> elab s' m'
+          | _ as v -> (s, error_expected (expr2str e) "monadic value" (val2str v))
+        end
      end
   | MNew(mv) -> begin match (elab_mv s StrMap.empty mv) with
                 | Result.Bad (s', e) -> (s', VConst(Err(e)))

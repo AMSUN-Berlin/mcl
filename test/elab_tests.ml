@@ -43,6 +43,7 @@ let obj fds = VObj(StrMap.of_enum (List.enum fds))
 
 let samples = [
   "new {x ⇐ return 1}" , (StrMap.empty, obj ["x", VConst(Int(1))]); 
+  "x ← return 1 ; x ← return 2 ; return x",  (StrMap.empty, VConst(Int(2))) ;
 ]
 						  
 let suite = "Interpreter" >:::	      

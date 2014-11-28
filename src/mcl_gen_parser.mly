@@ -36,6 +36,7 @@
 
 %token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH
 
+%right lowest
 %nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE 
 %left COMMA DOT
 %left SEMICOLON         /* lowest precedence */
@@ -43,6 +44,7 @@
 %left PLUS MINUS PLUSDOT MINUSDOT     /* medium precedence */
 %left TIMES DIV TIMESDOT DIVDOT        
 %nonassoc UMINUS        /* highest precedence */
+%nonassoc below_app
 %left app_prec          
 
 
@@ -145,7 +147,7 @@ expr:
     { App((Host(lift_ident "~-")), e) }
 | HASH e = expr %prec HASH
     { Length(e) }
-| NEW me = model
+ | NEW me = model
     { New(me) }
 | RETURN e = expr 
     { Return e }
@@ -171,7 +173,7 @@ expr:
 | x=IDENT BULLET PUT e = expr 
     { Put(x, e) }
 | x=IDENT LEFTARROW e = expr SEMICOLON e2 = expr
-    { Bind(x, e, e2) }
+    { Bind(x, e, e2) } %prec lowest
 | RETURN e = expr 
     { Return(e) }
 

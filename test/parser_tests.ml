@@ -100,10 +100,11 @@ let test_cases = [
   expr "3 > 4" (App(App(Host(lift_ident ">"), Const(Int(3))), Const(Int(4))));
   expr "3 * 4" (App(App(Host(lift_ident "*"), Const(Int(3))), Const(Int(4))));
   expr "⟪ foo ⟫" (Host(lift_ident "foo")) ;
-  expr "-1" (App(Host(lift_ident "~-"), Const(Int(1))));
-  expr "⟪(>)⟫ (-1) 2" (App(App(Host(lift_ident ">"), App(Host(lift_ident "~-"), Const(Int(1)))), Const(Int(2)))) ;
+  expr "-1" (Const(Int(-1)));
+  expr "⟪(>)⟫ (-1) 2" (App(App(Host(lift_ident ">"), Const(Int(-1))), Const(Int(2)))) ;
   expr " 1234" (Const(Int(1234)));
   expr " 1.234" (Const(Float(1.234)));
+  expr "f -1.234" (App(Var("f"), Const(Float(-1.234))));
 
   expr "let x = 42 in x" (Let("x", Const(Int(42)), Var("x")));
   expr "let x = λx.x in x" (Let("x", Abs("x", Var("x")), Var("x")));
@@ -125,6 +126,8 @@ let test_cases = [
   model "replace x with y in m" (MModify("x", Var("y"), MVar("m"))) ;
 
   expr "return 1" (Return ( Const (Int 1))) ;
+  expr "x ← g ; f 1" (Bind("x", Var("g"), App(Var("f"), Const(Int(1))))) ;
+  expr "x ← g ; x ← g ; return x" (Bind("x", Var("g"), Bind("x", Var("g"), Return(Var("x"))))) ;
 ]
 						  
 let suite = "Parser" >::: test_cases

@@ -47,9 +47,11 @@ let explicit_linear_ode_modeling = "
   in
   
   (* linear equations ft*time + fs[i].2 * x[fs[i].1] + c = dx_j *)
-  let add_equation ft fs c j = eqs ← equations•get ;                               
-                               let eqs' = ⟦eqs append (ft, fs, c, j)⟧ in
-                               derivatives•put eqs' 
+  let add_equation ft fs c j = eqs ← equations•get ;
+                               let i = #eqs in
+                               let eqs' = ⟦eqs with i = (ft, fs, c, j)⟧ in
+                               eq ← equations•put eqs' ;
+                               return i                                    
   in
 
   let eval_equation t xs eq = 
@@ -76,7 +78,7 @@ let explicit_linear_ode_modeling = "
                   xs ← states•get ;
 
                   let t' = t +. dt in
-                  let xs' = appl_step ds dt t' 0 xs in
+                  let xs' = appl_step eqs dt t' 0 xs in
                   void ← states•put xs ;
                   return t'
   in
@@ -103,24 +105,34 @@ let new_state = { name = "new state" ;
                   input = explicit_linear_ode_modeling ^                            
                             "void  ← prepare ; h ← new_state ; xs ← states•get ; void ← states•put ⟦xs with h = 42.0⟧ ; return h"}
 
+let add_equation = { name = "add equation" ;
+                     expected_state =  StrMap.add "equations" (VVec [||]) 
+                                               (StrMap.add "states" (VVec [||]) StrMap.empty);
+                     expected_value = VConst(Int(0));
+                     input = explicit_linear_ode_modeling ^                            
+                               "void  ← prepare ; void ← states•put ⟦⟦⟧ with 0 = 10.0⟧ ; eq ← add_equation 0.0 ⟦⟧ -9.81 0 ; return eq"}
+
 let free_fall = { name = "free fall" ; 
                   expected_state = StrMap.empty;
                   expected_value = VConst(Float(10.)) ;
                   input =
                     explicit_linear_ode_modeling ^ 
     "
+     _ ← prepare ;
      h ← new_state ;
      v ← new_state ;
      xs ← states•get ;
      void ← states•put ⟦xs with h = 10.0⟧ ;
+
      (* dv = -9.81 *) 
-     _ ← add_equation 0.0 ⟦⟧ -9.81 v ;
+     eq ← add_equation 0.0 ⟦⟧ -9.81 v ;
      
      (* dh = v *)
-     _ ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
+     eq ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
 
      (* simulate for 10 seconds *)
-     sim 0.0 10.0 
+     return 42 
+     (* sim 0.0 10.0  *)
     " ;
                 }
 
@@ -134,6 +146,7 @@ let elaborate {name ; input ; expected_state; expected_value} =
                                  
 let test_cases = [ 
   elaborate new_state ;
+  elaborate add_equation ;
   elaborate free_fall ;
 ]
 

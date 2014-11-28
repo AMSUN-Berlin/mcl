@@ -312,9 +312,9 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | "<>" -> NEQ
     | '#' -> HASH
 
-    | number, '.', Opt( number ), Opt ( 'e', number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
+    | Opt('-'), number, '.', Opt( number ), Opt ( 'e', number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
     | '.' ->  ( DOT )
-    | number ->  ( INT ( int_of_string (current () ) ))
+    | Opt('-'), number ->  ( INT ( int_of_string (current () ) ))
       
     | 0x03BB ->  ( LAMBDA ) 
     | 0x005B ->  LBRACKET 
