@@ -46,6 +46,8 @@ let samples = [
 
   ("⟦1;2;3⟧", VVec([|VConst(Int(1));VConst(Int(2));VConst(Int(3));|])) ;
 
+  ("(1,2,1+2)", VTup([VConst(Int(1)); VConst(Int(1)); VConst(Int(1))]));
+
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 1",  VConst(Int(1)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 2",  VConst(Int(2)));
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 3",  VConst(Int(6)));

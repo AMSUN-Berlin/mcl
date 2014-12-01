@@ -40,7 +40,7 @@ type value = VConst of const
 	   | VMonad of monad
 	   | VVec of value array
 	   | VHost of out_value * string
-           | VPair of value * value
+           | VTup of value list
            | VTagged of tag * value
                                     
 and model_value = MEmpty
@@ -77,7 +77,8 @@ and pp_val fmt = function
   | VVec(vs) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_val) (Array.to_list vs)
   | VTagged(tag, v) -> fprintf fmt "@[[⟨%s@ %a⟩@]" tag pp_val v
   | VObj ms -> fprintf fmt "@[⦃%a⦄@]" (pp_enum ~sep:";" pp_field) (StrMap.enum ms)
-
+  | VTup(vs) -> fprintf fmt "@[(%a)@]" (pp_list ~sep:"," pp_val) vs
+                       
 and pp_model_val fmt = fprintf fmt "[@{%a}@]" pp_model_val' 
 
 and pp_model_val' fmt = function
