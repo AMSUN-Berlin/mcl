@@ -115,6 +115,7 @@ let rec lift_monad = function
   | MPut(s,v) -> Put(s, lift_value v) | MChain(x, m, e) -> Bind(x, lift_monad m, e)
 		
 and lift_value = function
+  | VTup(vs) -> Tup(List.map lift_value vs)
   | VConst c   -> Const c 
   | VAbs (x,e) -> Abs(x,e)
   | VVec vs -> Vec (Array.map lift_value vs)
@@ -160,6 +161,10 @@ and eval_array es vs i = if i < (Array.length es) then
 			 else
 			   VVec(vs)
 
+and eval_list vs = function
+    e :: r -> pass_error e (fun v -> eval_list (v::vs) r)
+  | [] -> VTup(vs)
+
 and lift_back e = pass_error e (function 
   | VHost (Oval_constr ( Oide_ident "true", [] ), _) -> VConst (Bool true )
   | VHost (Oval_constr ( Oide_ident "false", [] ), _) -> VConst (Bool false)
@@ -175,6 +180,8 @@ and eval = function
    
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
+
+  | Tup (es) -> eval_list [] es 
 
   | Host ( h ) -> begin match ocaml_interpreter with 
 			  Some(eval) -> 
