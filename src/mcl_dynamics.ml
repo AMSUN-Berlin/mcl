@@ -36,12 +36,13 @@ module StrMap = Map.Make(String)
 
 type value = VConst of const
 	   | VAbs of string * expr
-	   | VAdt of string * (value list)
 	   | VObj of (value StrMap.t)
 	   | VMonad of monad
 	   | VVec of value array
 	   | VHost of out_value * string
-
+           | VPair of value * value
+           | VTagged of tag * value
+                                    
 and model_value = MEmpty
 		| MField of string * monad * model_value
 
@@ -74,7 +75,7 @@ and pp_val fmt = function
   | VAbs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
   | VMonad(m) -> pp_monad fmt m
   | VVec(vs) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_val) (Array.to_list vs)
-  | VAdt(a, vs) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_val) vs
+  | VTagged(tag, v) -> fprintf fmt "@[[⟨%s@ %a⟩@]" tag pp_val v
   | VObj ms -> fprintf fmt "@[⦃%a⦄@]" (pp_enum ~sep:";" pp_field) (StrMap.enum ms)
 
 and pp_model_val fmt = fprintf fmt "[@{%a}@]" pp_model_val' 
@@ -116,7 +117,7 @@ and lift_value = function
   | VConst c   -> Const c 
   | VAbs (x,e) -> Abs(x,e)
   | VVec vs -> Vec (Array.map lift_value vs)
-  | VAdt (a, vs) -> Adt(a, List.map lift_value vs)
+  | VTagged (tag, v) -> Tag(tag, lift_value v)
   | VMonad (m) -> lift_monad m 
   | VHost (_, x) -> Host (Ast_helper.Exp.ident  (ident x))
 

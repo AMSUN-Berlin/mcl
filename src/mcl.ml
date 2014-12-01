@@ -29,9 +29,6 @@
 open Batteries
 open Map
 
-(* pattern language, to be expanded *)
-type patt = string * (string list)
-
 (* literals *)
 type const = 
 	  | Float of float
@@ -39,7 +36,11 @@ type const =
 	  | Err of string
 	  | Bool of bool
 
-and expr = 
+type tag = string
+
+module TagMap = Map.Make(String)
+
+type expr = 
   (* Lambda calculus with let (rec) - bindings *)
   | Var of string 
   | Abs of string * expr
@@ -55,14 +56,14 @@ and expr =
   | Cond of expr * expr * expr
 	 
   (* data structures *)
-  | Tup of expr list 
-  | Select of int * expr
+  | Tag of tag * expr
+  | Case of expr * expr TagMap.t
+  | Tup of expr list
+  | Project of int * expr
   | Idx of expr * expr
   | Vec of expr array
   | Length of expr
   | Update of expr * expr * expr
-  | Case of expr * (patt * expr) list
-  | Adt of string * (expr list)
 		      
   (* modeling *)
   | New of model_expr
@@ -94,12 +95,17 @@ let rec equal_expr e1 = function
   | Cond(c, t, e) ->  begin match e1 with Cond(c', t', e') -> (equal_expr c c') && (equal_expr t t') && (equal_expr e e') | _ -> false end
   | Idx(e, i) -> begin match e1 with Idx(e', i') -> (equal_expr e e') && (equal_expr i i')  | _ -> false end
   | Vec(es) -> begin match e1 with Vec(es') -> Enum.fold2 (fun e e' a -> a && (equal_expr e e')) true (Array.enum es) (Array.enum es') | _ -> false end
-  | Case(e, ps) -> begin match e1 with Case(e', ps') -> List.fold_left2 (fun a (p,e) (p',e') -> a && (p = p') && (equal_expr e e')) true ps ps' | _ -> false end 
+  | Case(e, tes) -> begin match e1 with Case(e', tes') -> 
+                                        (equal_expr e e') && 
+                                        Enum.fold2 (fun (t,e) (t',e') a -> a && t = t' && (equal_expr e e')) 
+                                                   true (TagMap.enum tes) (TagMap.enum tes') 
+                                      | _ -> false end
   | Get(l) -> e1 = Get(l)
   | Put(l, e) -> begin match e1 with Put(l', e') when l = l' -> equal_expr e e' | _ -> false end 
   | Return(e) -> begin match e1 with Return(e') -> equal_expr e e' | _ -> false end 
   | Bind(x, l, r) -> begin match e1 with Bind(y, l', r') when x = y -> (equal_expr l l') && (equal_expr r r') | _ -> false end 
-  | Adt(a, es) -> begin match e1 with Adt(a', es') when a = a' -> List.fold_left2 (fun a e e' -> a && (equal_expr e e')) true es es' | _ -> false end    
+  | Tag(t, e) -> begin match e1 with Tag(t', e') when t = t' -> equal_expr e e' | _ -> false end
+  | Tup(es) -> begin match e1 with Tup(es') ->  List.fold_left2 (fun a e e' -> a && (equal_expr e e')) true es es' | _ -> false end
   | New m -> begin match e1 with New(m') -> equal_model_expr m m' | _ -> false end
   | Method(x, e) -> begin match e1 with Method(y,e') when x = y -> equal_expr e e' | _ -> false end 
 
@@ -131,15 +137,14 @@ let rec subst x v = function
   | New m -> New (m_subst_e x v m)
   | Idx(e1, e2) -> Idx(subst x v e1, subst x v e2)
   | Vec(es) -> Vec( Array.map (subst x v) es )
-  | Case(e, ps) -> Case(subst x v e, List.map (pat_subst x v) ps)
+  | Case(e, tes) -> Case(subst x v e, TagMap.map (subst x v) tes)
   | Get(l) -> Get(l)
   | Put(l, e) -> Put(l, subst x v e)
   | Return(e) -> Return(subst x v e)
   | Bind(y, e1, e2) when x = y -> Bind(y, e1, e2)
   | Bind(y, e1, e2) -> Bind(y, subst x v e1, subst x v e2)
-  | Adt(a, es) -> Adt(a, List.map (subst x v) es)
   | Host e -> Host e
-  | Select(n, e) -> Select(n, subst x v e)
+  | Project(n, e) -> Project(n, subst x v e)
   | Tup(es) -> Tup(List.map (subst x v) es)
   | Update(e,i,u) -> Update(subst x v e, subst x v i, subst x v u)
   | Length(e) -> Length(subst x v e)
@@ -159,13 +164,12 @@ and subst_m x sm = function
   | New m -> New (m_subst_m x sm m)
   | Idx(e1, e2) -> Idx(subst_m x sm e1, subst_m x sm e2)
   | Vec(es) -> Vec( Array.map (subst_m x sm) es )
-  | Case(e, ps) -> Case(subst_m x sm e, List.map (pat_subst_m x sm) ps)
+  | Case(e, tes) -> Case(subst_m x sm e, TagMap.map (subst_m x sm) tes)
   | Get(l) -> Get(l)
   | Put(l, e) -> Put(l, subst_m x sm e)
   | Return(e) -> Return(subst_m x sm e)
   | Bind(y, e1, e2) when x = y -> Bind(y, e1, e2)
   | Bind(y, e1, e2) -> Bind(y, subst_m x sm e1, subst_m x sm e2)
-  | Adt(a, es) -> Adt(a, List.map (subst_m x sm) es)
   | Host e -> Host e
 
 and m_subst_e x v = function

@@ -71,11 +71,6 @@ let rec mclc = function
   | Vec es -> array (List.map mclc (Array.to_list es)) 
   | Idx (a, i) -> apply (array_get) ["", mclc a ; "", mclc i]
 
-  | Adt(a, []) -> construct (lift_lid a) None 
-  | Adt(a, es) -> construct (lift_lid a) (Some (tuple (List.map mclc es)))
-
-  | Case(e, ps) -> match_ (mclc e) (List.map casec ps)
-
 and casec (patt, e) = case (patc patt) (mclc e) 
 			
 

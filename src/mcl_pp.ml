@@ -63,15 +63,14 @@ and pp_expr fmt = function
   | New(m) -> fprintf fmt "@[(new@ %a)@]" pp_model m 
   | Idx(e1, e2) -> fprintf fmt "@[%a[%a]@]" pp_expr e1 pp_expr e2 
   | Vec(es) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_expr) (Array.to_list es)
-  | Case(e, ps) -> fprintf fmt "@[match@ %a@ with@ %a@]" pp_expr e (pp_list pp_pat) ps
+  | Case(e, tes) -> fprintf fmt "@[(case@ %a@ of@ %a)@]" pp_expr e (pp_enum ~sep:"|" pp_pat) (TagMap.enum tes)
   | Get(l) -> fprintf fmt "@[%s•get@]" l
   | Put(l, e) -> fprintf fmt "@[%s•put@ %a@]" l pp_expr e
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
   | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a@]" x pp_expr e1 pp_expr e2
-  | Adt(a, es) -> fprintf fmt "@[%s⟨%a⟩@]" a (pp_list ~sep:";" pp_expr) es
   | Length(e) -> fprintf fmt "@[#(%a)@]" pp_expr e
   | Update(a,i,e) -> fprintf fmt "@[⟦%a@ with@ %a@ =@ %a⟧@]" pp_expr a pp_expr i pp_expr e
-  | Select(n, e) -> fprintf fmt "@[(%a.%d)@]" pp_expr e n
+  | Project(n, e) -> fprintf fmt "@[(%a.%d)@]" pp_expr e n
   | Tup(es) -> fprintf fmt "@[%a@]" (pp_list ~sep:", " pp_expr) es
                               
 and pp_fd fmt = function
@@ -87,9 +86,8 @@ and pp_model fmt = function
   | MModify (x, e, m) -> fprintf fmt "@[replace@ %s@ with@ %a@ in@ %a]" x pp_expr e pp_model m
   | MVar x -> fprintf fmt "@[%s@]" x
 
-and pp_pat fmt ((a, xs), e) = 
-  fprintf fmt "@[|@ [@%s⟨%a⟩@]@ →@ %a@]" a (pp_list pp_print_string) xs pp_expr e
-
+and pp_pat fmt (a, e) = 
+  fprintf fmt "@[%s →@ %a@]" a pp_expr e
 
 let expr2str ?max:(n=8) e = 
   pp_set_max_boxes str_formatter n ;
