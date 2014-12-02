@@ -104,6 +104,7 @@ let test_cases = [
   expr " 1234" (Const(Int(1234)));
   expr " 1.234" (Const(Float(1.234)));
   expr "f -1.234" (App(Var("f"), Const(Float(-1.234))));
+  expr "x + y.2 .2" (App(App(Host(lift_ident "+"), Var("x")), Project(2, Project(2, Var("y")))));
 
   expr "let x = 42 in x" (Let("x", Const(Int(42)), Var("x")));
   expr "let x = λx.x in x" (Let("x", Abs("x", Var("x")), Var("x")));

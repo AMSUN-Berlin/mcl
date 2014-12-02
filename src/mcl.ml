@@ -108,6 +108,7 @@ let rec equal_expr e1 = function
   | Tup(es) -> begin match e1 with Tup(es') ->  List.fold_left2 (fun a e e' -> a && (equal_expr e e')) true es es' | _ -> false end
   | New m -> begin match e1 with New(m') -> equal_model_expr m m' | _ -> false end
   | Method(x, e) -> begin match e1 with Method(y,e') when x = y -> equal_expr e e' | _ -> false end 
+  | Project(n, e) -> begin match e1 with Project(n', e') when n = n' -> equal_expr e e' | _ -> false end
 
 and equal_model_field f = function
   | Extend m -> begin match f with Extend m' -> equal_model_expr m m' | _ -> false end

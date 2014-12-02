@@ -38,14 +38,15 @@
 
 %right lowest
 %nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN LBRACKET RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE 
-%left COMMA DOT
+%left COMMA
 %left SEMICOLON         /* lowest precedence */
 %left GT LT NEQ GEQ LEQ EQ 
 %left PLUS MINUS PLUSDOT MINUSDOT     /* medium precedence */
 %left TIMES DIV TIMESDOT DIVDOT        
 %nonassoc UMINUS        /* highest precedence */
 %nonassoc below_app
-%left app_prec          
+%left app_prec     
+%left DOT     
 
 
 %{
