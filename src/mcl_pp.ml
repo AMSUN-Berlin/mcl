@@ -46,7 +46,7 @@ let rec pp_enum ?(sep="") pp_element fmt enum = match (Enum.get enum) with
   | None -> ()
 
 let rec pp_const fmt = function
-  | Float f -> pp_print_float fmt f
+  | Float f -> fprintf fmt "%e" f
   | Int i -> pp_print_int fmt i
   | Bool b -> pp_print_bool fmt b
   | Err msg -> fprintf fmt "error: '%s'" msg 
@@ -89,6 +89,11 @@ and pp_model fmt = function
 and pp_pat fmt (a, e) = 
   fprintf fmt "@[%s →@ %a@]" a pp_expr e
 
+let const2str ?max:(n=8) c = 
+  pp_set_max_boxes str_formatter n ;
+  (pp_const str_formatter c) ;
+  flush_str_formatter ()
+
 let expr2str ?max:(n=8) e = 
   pp_set_max_boxes str_formatter n ;
   (pp_expr str_formatter e) ;
@@ -99,3 +104,5 @@ let model2str ?max:(n=8) m =
   (pp_model str_formatter m) ;
   flush_str_formatter ()
 
+let _ = 
+ pp_set_ellipsis_text str_formatter " .. "
