@@ -55,20 +55,21 @@ let explicit_linear_ode_modeling = "
   in
 
   let eval_equation t xs eq = 
-    let rec eval_xs n = if n > #eq.2 then 0.0 else 
-                        xs[eq.2 .1] *. eq.2 .2 +. (eval_xs (n + 1))
+    let rec eval_xs n = if n >= #eq.2 then 0.0 else 
+                        xs[eq.2[n].1] *. eq.2[n].2 +. (eval_xs (n + 1))
     in 
     t *. eq.1 +. (eval_xs 0) +. eq.3  
   in
 
   (* simple fixed-step forward-euler *)
-  let rec appl_step eqs dt t n xs = if n > #eqs then 
+  let rec appl_step eqs dt t n xs = if n >= #eqs then 
                                       xs 
                                     else
                                       let eq = eqs[n] in
 
                                       (* update state variable j by equation n *)
                                       let dxj = eval_equation t xs eq in
+                                      let j = eq.4 in
                                       let xs' = ⟦xs with j = xs[j] +. (dt *. dxj)⟧ in
 
                                       appl_step eqs dt t (n+1) xs'
@@ -79,7 +80,7 @@ let explicit_linear_ode_modeling = "
 
                   let t' = t +. dt in
                   let xs' = appl_step eqs dt t' 0 xs in
-                  void ← states•put xs ;
+                  void ← states•put xs' ;
                   return t'
   in
 
@@ -112,11 +113,22 @@ let add_equation = { name = "add equation" ;
                      input = explicit_linear_ode_modeling ^                            
                                "void  ← prepare ; void ← states•put ⟦⟦⟧ with 0 = 10.0⟧ ; eq ← add_equation 0.0 ⟦⟧ -9.81 0 ; return eq"}
 
-let free_fall = { name = "free fall" ; 
-                  expected_state = StrMap.empty;
-                  expected_value = VConst(Float(10.)) ;
-                  input =
-                    explicit_linear_ode_modeling ^ 
+let rec ff g dt s v h t = 
+  if t >= s then (v,h) else
+    let v' = (v +. dt *. g) in
+    let h' = (h +. dt *. v') in
+    ff g dt s v' h' (t +. dt)
+
+let free_fall = 
+  let (v,h)  = (ff (-9.81) 1.0 10.0 0.0 10.0 0.0) in
+  { name = "free fall" ; 
+    expected_state = StrMap.add "equations" (VVec([|VTup([VConst(Float(0.0)); VVec([||]) ; VConst(Float(-9.81)) ; VConst(Int(1))]); 
+                                                    VTup([VConst(Float(0.0)); VVec([|VTup([VConst(Int(1));VConst(Float(1.0))])|]) ; VConst(Float(0.0)) ; VConst(Int(0))])
+                                                   |])) 
+                                (StrMap.add "states" (VVec([|VConst(Float(h));VConst(Float(v))|])) StrMap.empty) ;
+    expected_value = VVec([|VConst(Float(h));VConst(Float(v))|]) ;
+    input =
+      explicit_linear_ode_modeling ^ 
     "
      _ ← prepare ;
      h ← new_state ;
@@ -128,12 +140,15 @@ let free_fall = { name = "free fall" ;
      eq ← add_equation 0.0 ⟦⟧ -9.81 v ;
      
      (* dh = v *)
-     eq ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
+     eq ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 h ;
 
      (* simulate for 10 seconds *)
      sim 0.0 10.0  
     " ;
                 }
+
+let elab_equality (s,v) (s',v') = 
+  v = v' && (StrMap.equal (fun v v' -> v = v') s s')
 
 let parse {name ; input} = 
   (Printf.sprintf "Test parsing '%s'" name) >:: 
@@ -141,7 +156,7 @@ let parse {name ; input} =
 
 let elaborate {name ; input ; expected_state; expected_value} = 
   (Printf.sprintf "Test elaborating '%s'" name) >:: 
-    Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str (expected_state,expected_value) (start_elab e))
+    Parser_tests.expr_test input (fun e -> assert_equal ~cmp:elab_equality ~msg:"equality of elaboration" ~printer:(elab2str ~max:12) (expected_state,expected_value) (start_elab e))
                                  
 let test_cases = [ 
   elaborate new_state ;

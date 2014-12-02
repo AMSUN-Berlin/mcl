@@ -54,6 +54,7 @@ and monad = MGet of string
 
 let unit_val = VVec([||])
 
+
 let rec monad_subst x e = function
     MGet l -> MGet l
   | MPut (l, e') -> MPut(l, e')
@@ -106,6 +107,21 @@ let monad2str ?max:(n=4) v =
   Format.pp_set_max_boxes Format.str_formatter n ;
   (pp_monad Format.str_formatter v) ;
   Format.flush_str_formatter ()
+
+(*
+let rec valeq v v' = 
+  let res = 
+  match v' with
+    VConst(c) -> begin match v with VConst(c') -> const_eq c c' | _ -> false end
+  | VAbs(s, e) -> begin match v with VAbs(s', e') when s = s' -> equal_expr e e' | _ -> false end
+  | VObj(fs) -> begin match v with VObj(fs') -> StrMap.equal valeq fs fs' | _ -> false end
+  | VVec (vs) -> begin match v with VVec(vs') -> Array.equal valeq vs vs' | _ -> false end
+(*  | VMonad(m) -> begin match v with VMonad(m') -> monadeq m m' | _ -> false end
+  | V
+ *)
+  in   Printf.printf "Value Equality of '%s' and '%s' = %b\n" (val2str v) (val2str v') res ;
+       res
+ *)
 
 let ident x = {Asttypes.txt = Longident.Lident x ; loc = Location.none}
 
@@ -162,9 +178,10 @@ and eval_array es vs i = if i < (Array.length es) then
 			   VVec(vs)
 
 and eval_list = function
-    e :: r -> pass_error e (fun v -> match eval_list r with 
-                                       VTup(vs) -> VTup(v::vs)
-                                     | _ -> v
+    e :: r -> pass_error e (fun v -> 
+                            match eval_list r with 
+                              VTup(vs) -> VTup(v::vs)
+                            | VConst(Err(e)) -> VConst(Err(e))
                            )
   | [] -> VTup([])
 
@@ -184,13 +201,14 @@ and eval = function
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
 
-  | Tup (es) -> eval_list es 
+  | Tup (es) -> eval_list es
 
-  | Project(n, e) -> pass_error e (function 
-                                    | VTup(vs) as v when List.length vs > n -> error_expected (expr2str e) (Printf.sprintf "an %d-tuple" (List.length vs)) (val2str v)
-                                    | VTup(vs) -> List.at vs n 
-                                    | _ as v -> error_expected (expr2str e) "tuple expression" (val2str v)
-                                  )
+  | Project(n, e) as p -> pass_error e (fun v -> 
+                                        match v with 
+                                         | VTup(vs) when List.length vs < n -> error_expected (expr2str e) (Printf.sprintf "an %d-tuple" (List.length vs)) (val2str v)
+                                         | VTup(vs) -> List.at vs (n-1) 
+                                         | _ -> error_expected (expr2str p) "tuple expression" (val2str v)
+                                       )
 
   | Host ( h ) -> begin match ocaml_interpreter with 
 			  Some(eval) -> 
@@ -217,7 +235,7 @@ and eval = function
 						      | VConst (Bool b) -> 
 							 eval_host_app x (Ast_helper.Exp.ident (ident (string_of_bool b)))
 						      | VConst (Float f) -> 
-							 eval_host_app x (Ast_helper.Exp.constant (Asttypes.Const_float (string_of_float f)))						 
+							 eval_host_app x (Ast_helper.Exp.constant (Asttypes.Const_float (Printf.sprintf "%.100e" f)))						 
 						      | VConst (Int i) -> 
 							 eval_host_app x (Ast_helper.Exp.constant (Asttypes.Const_int i))
 						      | v -> VConst(Err(Printf.sprintf "Currently, only literal arguments are supported to OCaml expressions, got '%s'\n" (val2str v)))
@@ -337,11 +355,11 @@ and meval mods = function
   
   | _ as m -> Result.Bad (Printf.sprintf "Don't know how to evaluate '%s'. Confused." (model2str m))
 
-let write_value output v = BatIO.write_string output (val2str v)
+let write_value ?max:(n=8) output v = BatIO.write_string output (val2str ~max:n v)
 
-let state2str = BatIO.to_string (StrMap.print ~first:"{" ~last:"}" ~sep:";" ~kvsep:" = " BatIO.write_string write_value)
+let state2str ?max:(n=8) = BatIO.to_string (StrMap.print ~first:"{" ~last:"}" ~sep:";" ~kvsep:" = " BatIO.write_string (write_value ~max:n))
 
-let elab2str (s,v) =  (state2str s) ^ " , " ^ (val2str v)
+let elab2str ?max:(n=8) (s,v) =  (state2str s) ^ " , " ^ (val2str ~max:n v)
 
 let rec elab s = function
   | MReturn(v) -> (s, v)
