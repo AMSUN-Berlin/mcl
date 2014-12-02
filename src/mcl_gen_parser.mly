@@ -95,7 +95,7 @@ field:
 
 expr_comma_list:
     es=expr_comma_list COMMA e=expr    { e :: es }
-  | e1=expr COMMA e2=expr  { [e2;e2] }
+  | e1=expr COMMA e2=expr  { [e2;e1] }
 
 expr:
 | i = INT

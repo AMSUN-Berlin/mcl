@@ -161,9 +161,12 @@ and eval_array es vs i = if i < (Array.length es) then
 			 else
 			   VVec(vs)
 
-and eval_list vs = function
-    e :: r -> pass_error e (fun v -> eval_list (v::vs) r)
-  | [] -> VTup(vs)
+and eval_list = function
+    e :: r -> pass_error e (fun v -> match eval_list r with 
+                                       VTup(vs) -> VTup(v::vs)
+                                     | _ -> v
+                           )
+  | [] -> VTup([])
 
 and lift_back e = pass_error e (function 
   | VHost (Oval_constr ( Oide_ident "true", [] ), _) -> VConst (Bool true )
@@ -181,7 +184,13 @@ and eval = function
   | Const c -> VConst c
   | Abs(x,e) -> VAbs(x,e)
 
-  | Tup (es) -> eval_list [] es 
+  | Tup (es) -> eval_list es 
+
+  | Project(n, e) -> pass_error e (function 
+                                    | VTup(vs) as v when List.length vs > n -> error_expected (expr2str e) (Printf.sprintf "an %d-tuple" (List.length vs)) (val2str v)
+                                    | VTup(vs) -> List.at vs n 
+                                    | _ as v -> error_expected (expr2str e) "tuple expression" (val2str v)
+                                  )
 
   | Host ( h ) -> begin match ocaml_interpreter with 
 			  Some(eval) -> 

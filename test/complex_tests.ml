@@ -86,7 +86,7 @@ let explicit_linear_ode_modeling = "
   let rec sim t stop = if t >= stop then 
                          states•get                                   
                        else 
-                         t' ← step t 0.01 ;
+                         t' ← step t 1.0 ;
                          sim t' stop 
   in
 " 
@@ -131,8 +131,7 @@ let free_fall = { name = "free fall" ;
      eq ← add_equation 0.0 ⟦(v, 1.0)⟧ 0.0 v ;
 
      (* simulate for 10 seconds *)
-     return 42 
-     (* sim 0.0 10.0  *)
+     sim 0.0 10.0  
     " ;
                 }
 
