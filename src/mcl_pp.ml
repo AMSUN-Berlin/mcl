@@ -63,7 +63,7 @@ and pp_expr fmt = function
   | New(m) -> fprintf fmt "@[(new@ %a)@]" pp_model m 
   | Idx(e1, e2) -> fprintf fmt "@[%a[%a]@]" pp_expr e1 pp_expr e2 
   | Vec(es) -> fprintf fmt "@[⟦%a⟧@]" (pp_list ~sep:";" pp_expr) (Array.to_list es)
-  | Case(e, tes) -> fprintf fmt "@[(case@ %a@ of@ %a)@]" pp_expr e (pp_enum ~sep:"|" pp_pat) (TagMap.enum tes)
+  | Case(e, tes) -> fprintf fmt "@[(case@ %a@ of@ %a)@]" pp_expr e (pp_enum ~sep:"|" pp_pat) (StrMap.enum tes)
   | Get(l) -> fprintf fmt "@[%s•get@]" l
   | Put(l, e) -> fprintf fmt "@[%s•put@ %a@]" l pp_expr e
   | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e

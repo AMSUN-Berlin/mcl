@@ -46,7 +46,7 @@ let rec prep_expr = function
   | Cond(c, t, e) ->  Cond (prep_expr c, prep_expr t, prep_expr e)
   | Idx(e, i) -> Idx(prep_expr e, prep_expr i)
   | Vec(es) -> Vec ( Array.map prep_expr es )
-  | Case(e, tes) -> Case(prep_expr e, TagMap.map prep_expr tes)
+  | Case(e, tes) -> Case(prep_expr e, StrMap.map prep_expr tes)
   | Put(l, e) -> Put(l, prep_expr e)
   | Return(e) -> Return (prep_expr e)
   | Bind(x, l, r) -> Bind(x, prep_expr l, prep_expr r)

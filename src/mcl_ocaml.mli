@@ -32,4 +32,8 @@ val lift_ident : string -> Parsetree.expression
 
 val mclc : Mcl.expr -> Parsetree.expression
 
+val statec : Mcl.expr Mcl.StrMap.t -> Parsetree.expression
+
 val ocaml_interpreter : unit -> (Parsetree.expression -> ((string * Outcometree.out_value), string) Result.t) option
+
+val ocaml_elaborator : unit -> (Parsetree.expression -> Parsetree.expression -> ((string * Outcometree.out_value), string) Result.t) option

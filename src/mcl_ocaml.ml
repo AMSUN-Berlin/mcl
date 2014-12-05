@@ -33,8 +33,6 @@ open Ast_helper
 open Parsetree
 open Location
 
-module StrMap = Map.Make(String)
-
 let lift_lid x = mknoloc (  Longident.Lident x )
 
 let lift_ident x =
@@ -118,6 +116,8 @@ let _ocaml_elaborator = ref None
 
 let ocaml_interpreter () = !_ocaml_interpreter
 
+let ocaml_elaborator () = !_ocaml_elaborator
+
 let compile_and_eval_expr execute_phrase e = 
   let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
   incr fresh_var_counter ;
@@ -161,11 +161,11 @@ let _ =
   try 
     Ocaml_toploop.initialize_toplevel_env () ;
     _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase) ;
-    _ocaml_elaborator := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase)
+    _ocaml_elaborator := Some (compile_and_elaborate_expr Ocaml_toploop.execute_phrase)
   with
   (* bytecode interpreter unable to load, try native code interpreter *)
   | Invalid_argument _ -> 
      Ocaml_opttoploop.initialize_toplevel_env () ;
      _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_opttoploop.execute_phrase) ;
-     _ocaml_elaborator := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase)
+     _ocaml_elaborator := Some (compile_and_elaborate_expr Ocaml_toploop.execute_phrase)
                               

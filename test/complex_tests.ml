@@ -27,11 +27,13 @@
  *)
 
 open OUnit
+open Batteries
 open Mcl_parser
 open Mcl
 open Mcl_lexer
 open Mcl_pp
 open Mcl_dynamics
+open Mcl_ocaml
 
 let explicit_linear_ode_modeling = "
 
@@ -95,11 +97,14 @@ let explicit_linear_ode_modeling = "
 type complex_test_case = {
   name : string ;
   input : string ;           
+  start_state : expr StrMap.t ;
   expected_state : value StrMap.t ;
   expected_value : value;
 }
 
 let new_state = { name = "new state" ;
+                  start_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty );
+
                   expected_state =  StrMap.add "equations" (VVec [||]) 
                                                (StrMap.add "states" (VVec [|VConst(Float(42.0))|]) StrMap.empty);
                   expected_value = VConst(Int(0));
@@ -107,8 +112,10 @@ let new_state = { name = "new state" ;
                             "void  ← prepare ; h ← new_state ; xs ← states•get ; void ← states•put ⟦xs with h = 42.0⟧ ; return h"}
 
 let add_equation = { name = "add equation" ;
-                     expected_state =  StrMap.add "equations" (VVec [||]) 
-                                               (StrMap.add "states" (VVec [||]) StrMap.empty);
+                     start_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty );
+
+                     expected_state =  StrMap.add "equations" (VVec([|VTup([VConst(Float(0.0)); VVec([||]) ; VConst(Float(-9.81)) ; VConst(Int(0))]); |]))
+                                               (StrMap.add "states" (VVec [|VConst(Float(10.))|]) StrMap.empty);
                      expected_value = VConst(Int(0));
                      input = explicit_linear_ode_modeling ^                            
                                "void  ← prepare ; void ← states•put ⟦⟦⟧ with 0 = 10.0⟧ ; eq ← add_equation 0.0 ⟦⟧ -9.81 0 ; return eq"}
@@ -122,9 +129,10 @@ let rec ff g dt s v h t =
 let free_fall = 
   let (v,h)  = (ff (-9.81) 1.0 10.0 0.0 10.0 0.0) in
   { name = "free fall" ; 
+    start_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty) ;
     expected_state = StrMap.add "equations" (VVec([|VTup([VConst(Float(0.0)); VVec([||]) ; VConst(Float(-9.81)) ; VConst(Int(1))]); 
                                                     VTup([VConst(Float(0.0)); VVec([|VTup([VConst(Int(1));VConst(Float(1.0))])|]) ; VConst(Float(0.0)) ; VConst(Int(0))])
-                                                   |])) 
+                                                   |]))
                                 (StrMap.add "states" (VVec([|VConst(Float(h));VConst(Float(v))|])) StrMap.empty) ;
     expected_value = VVec([|VConst(Float(h));VConst(Float(v))|]) ;
     input =
@@ -150,18 +158,39 @@ let free_fall =
 let elab_equality (s,v) (s',v') = 
   v = v' && (StrMap.equal (fun v v' -> v = v') s s')
 
+let ocaml_elaborator = Mcl_ocaml.ocaml_elaborator ()
+
+let compile_and_elab s e =
+  match ocaml_elaborator with 
+    Some ocaml_elaborator -> begin
+			     match (ocaml_elaborator (statec s) (mclc e)) with
+			       Result.Ok (_, v) -> object_value v
+			     | Result.Bad err -> VConst(Err(err))
+    end
+  | None -> VConst(Err("Error loading OCaml interpreter"))
+
 let parse {name ; input} = 
   (Printf.sprintf "Test parsing '%s'" name) >:: 
     Parser_tests.expr_test input (fun e -> ignore e)
 
-let elaborate {name ; input ; expected_state; expected_value} = 
+let elaborate {name ; input ; start_state ; expected_state; expected_value} = 
   (Printf.sprintf "Test elaborating '%s'" name) >:: 
     Parser_tests.expr_test input (fun e -> assert_equal ~cmp:elab_equality ~msg:"equality of elaboration" ~printer:(elab2str ~max:12) (expected_state,expected_value) (start_elab e))
+
+let elaborate_compiled {name ; input ; start_state ; expected_value} = 
+  (Printf.sprintf "Test elaborating compiled '%s'" name) >::
+    Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality of elaboration" ~printer:(val2str ~max:12) expected_value (compile_and_elab start_state e))
+    
                                  
 let test_cases = [ 
   elaborate new_state ;
   elaborate add_equation ;
   elaborate free_fall ;
+
+  elaborate_compiled new_state ;
+  elaborate_compiled add_equation ;
+  elaborate_compiled free_fall ;
+
 ]
 
 let suite = "Complex Test Cases" >::: test_cases

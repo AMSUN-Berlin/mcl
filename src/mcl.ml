@@ -27,7 +27,6 @@
  *)
 
 open Batteries
-open Map
 
 (* literals *)
 type const = 
@@ -36,9 +35,7 @@ type const =
 	  | Err of string
 	  | Bool of bool
 
-type tag = string
-
-module TagMap = Map.Make(String)
+module StrMap = Map.Make(String)
 
 type expr = 
   (* Lambda calculus with let (rec) - bindings *)
@@ -56,8 +53,8 @@ type expr =
   | Cond of expr * expr * expr
 	 
   (* data structures *)
-  | Tag of tag * expr
-  | Case of expr * expr TagMap.t
+  | Tag of string * expr
+  | Case of expr * expr StrMap.t
   | Tup of expr list
   | Project of int * expr
   | Idx of expr * expr
@@ -98,7 +95,7 @@ let rec equal_expr e1 = function
   | Case(e, tes) -> begin match e1 with Case(e', tes') -> 
                                         (equal_expr e e') && 
                                         Enum.fold2 (fun (t,e) (t',e') a -> a && t = t' && (equal_expr e e')) 
-                                                   true (TagMap.enum tes) (TagMap.enum tes') 
+                                                   true (StrMap.enum tes) (StrMap.enum tes') 
                                       | _ -> false end
   | Get(l) -> e1 = Get(l)
   | Put(l, e) -> begin match e1 with Put(l', e') when l = l' -> equal_expr e e' | _ -> false end 
@@ -138,7 +135,7 @@ let rec subst x v = function
   | New m -> New (m_subst_e x v m)
   | Idx(e1, e2) -> Idx(subst x v e1, subst x v e2)
   | Vec(es) -> Vec( Array.map (subst x v) es )
-  | Case(e, tes) -> Case(subst x v e, TagMap.map (subst x v) tes)
+  | Case(e, tes) -> Case(subst x v e, StrMap.map (subst x v) tes)
   | Get(l) -> Get(l)
   | Put(l, e) -> Put(l, subst x v e)
   | Return(e) -> Return(subst x v e)
@@ -165,7 +162,7 @@ and subst_m x sm = function
   | New m -> New (m_subst_m x sm m)
   | Idx(e1, e2) -> Idx(subst_m x sm e1, subst_m x sm e2)
   | Vec(es) -> Vec( Array.map (subst_m x sm) es )
-  | Case(e, tes) -> Case(subst_m x sm e, TagMap.map (subst_m x sm) tes)
+  | Case(e, tes) -> Case(subst_m x sm e, StrMap.map (subst_m x sm) tes)
   | Get(l) -> Get(l)
   | Put(l, e) -> Put(l, subst_m x sm e)
   | Return(e) -> Return(subst_m x sm e)
