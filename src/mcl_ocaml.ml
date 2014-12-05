@@ -26,11 +26,14 @@
  *
  *)
 
+open Batteries
 open Mcl
 open Mcl_pp
 open Ast_helper
 open Parsetree
 open Location
+
+module StrMap = Map.Make(String)
 
 let lift_lid x = mknoloc (  Longident.Lident x )
 
@@ -71,16 +74,17 @@ let rec mclc = function
   | Vec es -> array (List.map mclc (Array.to_list es)) 
   | Idx (a, i) -> apply (array_get) ["", mclc a ; "", mclc i]
 
-and casec (patt, e) = case (patc patt) (mclc e) 
-			
+and state_field (x, e) = List.enum [(Cf.val_ (mknoloc x) Immutable (Cfk_concrete(Fresh, mclc e))) ; 
+                                    (Cf.method_ (mknoloc ("get_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident x))) ;
+                                    (Cf.method_ (mknoloc ("put_" ^ x)) Public (
+                                                  let x' =  x ^ "'" in
+                                                  Cfk_concrete(Fresh, fun_ "" None (Pat.var (mknoloc (x'))) (override [mknoloc x, lift_ident x']) )
+                                                )
+                                    ) ;
+                                   ]
 
-			 (*
-  | Case(e, ps) -> fprintf fmt "@[match@ %a@ with@ %a@]" pp_expr e (pp_list pp_pat) ps
-  | Get(l) -> fprintf fmt "@[%s•get@]" l
-  | Put(l, e) -> fprintf fmt "@[%s•put@ %a@]" l pp_expr e
-  | Return(e) -> fprintf fmt "@[return@ %a@]" pp_expr e
-  | Bind(x, e1, e2) -> fprintf fmt "@[%s@ ←@ %a@ ;@ %a]" x pp_expr e1 pp_expr e2
-			  *)
+and statec s = object_ ( Cstr.mk (Pat.var (mknoloc "self")) (List.of_enum (Enum.concat_map state_field (StrMap.enum s))) )
+
 let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
 							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;
 									  ppat_loc = Location.none ;
@@ -92,11 +96,25 @@ let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursiv
 							   }] ) ; 
 				    pstr_loc = Location.none }]
 
+let ident2pat x = {ppat_desc = (* TODO: tuple *) Ppat_var {Asttypes.txt = x; loc = Location.none } ; ppat_loc = Location.none ; ppat_attributes = []}
+
+let lift_to_elab_phrase x s state e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
+							    [{ pvb_pat = {ppat_desc = Ppat_tuple [ident2pat s; ident2pat x] ;
+									  ppat_loc = Location.none ;
+									  ppat_attributes = [] ; 
+									 } ;
+							       pvb_expr = apply e [("", state)];
+							       pvb_attributes = [];
+							       pvb_loc = Location.none ;								     
+							   }] ) ; 
+				    pstr_loc = Location.none }]
+
 open BatResult
 open Ocaml_common
 
 let fresh_var_counter = ref 0 
 let _ocaml_interpreter = ref None
+let _ocaml_elaborator = ref None
 
 let ocaml_interpreter () = !_ocaml_interpreter
 
@@ -118,13 +136,36 @@ let compile_and_eval_expr execute_phrase e =
   with
   | e -> Location.report_exception Format.std_formatter e ; raise e
 
+let compile_and_elaborate_expr execute_phrase state e = 
+  let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
+  let s = Printf.sprintf "$state%d" !fresh_var_counter in
+
+  incr fresh_var_counter ;
+  try 
+    let {success;result} = execute_phrase true Format.str_formatter (lift_to_elab_phrase x s state e) in
+    let output = Format.flush_str_formatter () in
+
+    if success then
+      match result with
+      | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
+      | Ophr_eval(v,_) -> Ok (x, v)
+      | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
+      | _ -> Bad output
+    else
+      Bad output
+  with
+  | e -> Location.report_exception Format.std_formatter e ; raise e
+
 let _ = 
   fresh_var_counter := 0 ;  
   try 
     Ocaml_toploop.initialize_toplevel_env () ;
-    _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase)
+    _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase) ;
+    _ocaml_elaborator := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase)
   with
   (* bytecode interpreter unable to load, try native code interpreter *)
   | Invalid_argument _ -> 
      Ocaml_opttoploop.initialize_toplevel_env () ;
-     _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_opttoploop.execute_phrase)
+     _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_opttoploop.execute_phrase) ;
+     _ocaml_elaborator := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase)
+                              
