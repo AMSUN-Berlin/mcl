@@ -30,8 +30,10 @@ open Batteries
 open Mcl
 open Mcl_pp
 open Ast_helper
+open Asttypes
 open Parsetree
 open Location
+open Exp
 
 let lift_lid x = mknoloc (  Longident.Lident x )
 
@@ -40,12 +42,56 @@ let lift_ident x =
     pexp_loc = none;
     pexp_attributes = [] }
 
+let lift_construct x =
+  { pexp_desc = Pexp_construct ((lift_lid x), None) ; 		
+    pexp_loc = none;
+    pexp_attributes = [] }
+
+
+let bin_op op e1 e2 = 
+  App(App((Host(lift_ident op)), e1), e2)
+
+let rec app f e = function
+    [] -> App (f, e)
+  | e'::es -> app (App (f, e)) e' es
+
 let array_get = 
   { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "get") ; loc = none ; } ; 		
     pexp_loc = none;
     pexp_attributes = [] }
 
-open Exp
+let array_set = 
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "set") ; loc = none ; } ; 		
+    pexp_loc = none;
+    pexp_attributes = [] }
+
+let array_copy = 
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "copy") ; loc = none ; } ; 		
+    pexp_loc = none;
+    pexp_attributes = [] }
+
+let array_append = 
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "append") ; loc = none ; } ; 		
+    pexp_loc = none;
+    pexp_attributes = [] }
+
+let array_singleton e = array [e]
+
+let array_change = fun_ "" None (Pat.var (mknoloc "a")) (
+                          fun_ "" None (Pat.var (mknoloc "i")) (
+                                 fun_ "" None (Pat.var (mknoloc "e")) (
+                                        sequence
+                                        (apply array_set ["", lift_ident "a"; "", lift_ident "i"; "", lift_ident "e"])
+                                        (lift_ident "a")
+                                      )
+                               )
+                        )
+(* update array in-place and return it *)
+
+let array_length = 
+  { pexp_desc = Pexp_ident {Asttypes.txt = Longident.Ldot (Longident.Lident "Array", "length") ; loc = none ; } ; 		
+    pexp_loc = none;
+    pexp_attributes = [] }
 
 let patc  = function 
   | (c, []) -> Pat.construct (lift_lid c) None
@@ -54,8 +100,8 @@ let patc  = function
 let rec constc = function
   | Float f -> constant (Const_float (string_of_float f))
   | Int i -> constant (Const_int i)
-  | Bool true -> lift_ident "true"
-  | Bool false -> lift_ident "false"
+  | Bool true -> lift_construct "true"
+  | Bool false -> lift_construct "false"
   | Err e -> apply (lift_ident "raise") ["", (apply (lift_ident "Invalid_Argument") ["", (constant (Const_string (e, None)))])]
 
 let rec mclc = function
@@ -71,6 +117,31 @@ let rec mclc = function
 
   | Vec es -> array (List.map mclc (Array.to_list es)) 
   | Idx (a, i) -> apply (array_get) ["", mclc a ; "", mclc i]
+  | Length (e) -> apply (array_length) ["", mclc e]
+  | Update(a, i, e) -> mclc (array_update a i e)
+  | Tup (es) -> object_ ( Cstr.mk (Pat.any ()) (tuple_fields 1 es) )
+  | Project (n, e) -> let mthd = "pj_" ^ (string_of_int n) in
+                      send (mclc e) mthd 
+
+and array_update a i  e = Let("src", a, Let("idx", i, 
+                                            Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
+                                               app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
+                                               Cond(bin_op "=" (Var "idx") (Var "len"), 
+                                                  app (Host array_append) (Var "src")  [Host(array_singleton (mclc e))],
+                                                  Const(Err("Array index out of bounds"))
+                                                 )
+                                              )
+                                           )
+                             )
+(* Functional array update:
+   If idx > 0 && idx < length then copy & update-in-place else if idx = length append else error 
+*)
+
+and tuple_fields n = function 
+  | [] -> []
+  | e::r -> let x = string_of_int n in 
+            (Cf.val_ (mknoloc ("val_" ^ x)) Immutable (Cfk_concrete(Fresh, mclc e))) ::
+              (Cf.method_ (mknoloc ("pj_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident ("val_" ^ x)))) :: (tuple_fields (n+1) r)
 
 and state_field (x, e) = List.enum [(Cf.val_ (mknoloc x) Immutable (Cfk_concrete(Fresh, mclc e))) ; 
                                     (Cf.method_ (mknoloc ("get_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident x))) ;
@@ -81,7 +152,7 @@ and state_field (x, e) = List.enum [(Cf.val_ (mknoloc x) Immutable (Cfk_concrete
                                     ) ;
                                    ]
 
-and statec s = object_ ( Cstr.mk (Pat.var (mknoloc "self")) (List.of_enum (Enum.concat_map state_field (StrMap.enum s))) )
+let rec statec s = object_ ( Cstr.mk (Pat.var (mknoloc "self")) (List.of_enum (Enum.concat_map state_field (StrMap.enum s))) )
 
 let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
 							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;
@@ -134,12 +205,12 @@ let compile_and_eval_expr execute_phrase e =
     else
       Bad output
   with
-  | e -> Location.report_exception Format.std_formatter e ; raise e
+  | e -> Location.report_exception Format.str_formatter e ; Bad (Format.flush_str_formatter ())
 
 let compile_and_elaborate_expr execute_phrase state e = 
   let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
   let s = Printf.sprintf "$state%d" !fresh_var_counter in
-
+  
   incr fresh_var_counter ;
   try 
     let {success;result} = execute_phrase true Format.str_formatter (lift_to_elab_phrase x s state e) in
@@ -154,7 +225,7 @@ let compile_and_elaborate_expr execute_phrase state e =
     else
       Bad output
   with
-  | e -> Location.report_exception Format.std_formatter e ; raise e
+  | e -> Location.report_exception Format.str_formatter e ; Bad (Format.flush_str_formatter ())
 
 let _ = 
   fresh_var_counter := 0 ;  

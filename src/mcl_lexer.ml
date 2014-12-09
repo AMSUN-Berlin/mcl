@@ -85,6 +85,8 @@ let name_of_token = function
   | REPLACE -> "REPLACE"
   | WITH -> "WITH"
   | HASH -> "HASH"
+  | TRUE -> "TRUE"
+  | FALSE -> "FALSE"
 
 type cursor = { 
   line : int;
@@ -263,6 +265,8 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
   in
 
   let ident_or_kw () = match (Sedlexing.Utf8.lexeme buf) with
+    | "true" -> TRUE
+    | "false" -> FALSE
     | "if" -> IF
     | "then" ->  THEN
     | "else" ->  ELSE

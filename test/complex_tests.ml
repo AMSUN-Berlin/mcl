@@ -185,7 +185,7 @@ let elaborate_compiled {name ; input ; start_state ; expected_value} =
 let test_cases = [ 
   elaborate new_state ;
   elaborate add_equation ;
-  elaborate free_fall ;
+  (* elaborate free_fall ; *)
 
   elaborate_compiled new_state ;
   elaborate_compiled add_equation ;

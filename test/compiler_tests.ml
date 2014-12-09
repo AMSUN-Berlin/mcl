@@ -47,9 +47,12 @@ let eval e =
   | None -> VConst(Err("Error loading OCaml interpreter"))
 
 let test_case (input, expected) =
-  (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input (fun e -> assert_equal ~msg:"equality" ~printer:val2str expected (eval e)))
+  let msg = Printf.sprintf "Check equality with '%s'" (val2str expected) in
+  let equals e = (bin_op "=" e (lift_value expected)) in
+  (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input (fun e -> assert_equal ~msg:msg ~printer:val2str (VConst (Bool true)) (eval (equals e))))
 
 let samples = [
+  ("true", VConst(Bool(true)));
   ("42", VConst(Int(42)) );
   ("42.", VConst(Float(42.)) );
   ("⟪(+)⟫ 40 2", VConst(Int(42)) );
@@ -66,6 +69,12 @@ let samples = [
   ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 6",  VConst(Int(720)));
 
   ("let foo = None in match foo with None -> 1 | Some d -> d in foo", VConst(Int(1)));
+
+  ("⟦1;2;3⟧", VVec([|VConst(Int(1));VConst(Int(2));VConst(Int(3));|])) ;
+
+  ("(1,2.,1+2)#1", VConst(Int(3)));
+  ("(0., ⟦⟧, -9.81, 1.2)", VTup([VConst(Float(0.));VVec([||]);VConst(Float(-9.81));VConst(Float(1.2))])) ;
+  ("#⟦⟧"), VConst(Int(0));
 ]
 						  
 let suite = "Compiler" >:::	      

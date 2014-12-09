@@ -30,6 +30,8 @@ open Batteries
 
 val lift_ident : string -> Parsetree.expression
 
+val bin_op : string -> Mcl.expr -> Mcl.expr -> Mcl.expr
+
 val mclc : Mcl.expr -> Parsetree.expression
 
 val statec : Mcl.expr Mcl.StrMap.t -> Parsetree.expression
