@@ -72,8 +72,7 @@ let samples = [
 
   ("⟦1;2;3⟧", VVec([|VConst(Int(1));VConst(Int(2));VConst(Int(3));|])) ;
 
-  ("(1,2.,1+2)#1", VConst(Int(3)));
-  ("(0., ⟦⟧, -9.81, 1.2)", VTup([VConst(Float(0.));VVec([||]);VConst(Float(-9.81));VConst(Float(1.2))])) ;
+  ("(1,2.,1+2).3", VConst(Int(3)));
   ("#⟦⟧"), VConst(Int(0));
 ]
 						  

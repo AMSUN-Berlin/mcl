@@ -129,6 +129,8 @@ let test_cases = [
   expr "return 1" (Return ( Const (Int 1))) ;
   expr "x ← g ; f 1" (Bind("x", Var("g"), App(Var("f"), Const(Int(1))))) ;
   expr "x ← g ; x ← g ; return x" (Bind("x", Var("g"), Bind("x", Var("g"), Return(Var("x"))))) ;
+
+  expr "(1,2).1" (Project(1, Tup [Const (Int 1); Const (Int 2)] ));
 ]
 						  
 let suite = "Parser" >::: test_cases
