@@ -78,6 +78,7 @@ let samples = [
   ("x←1", [IDENT "x"; LEFTARROW; INT 1 ] );
   ("{}", [LBRACE; RBRACE]);
   ("⇐", [DLEFTARROW]);
+  ("true false", [TRUE; FALSE]);
   ("replaceable", [REPLACEABLE]);
   ("state", [STATE]);
   ("model", [MODEL]);
