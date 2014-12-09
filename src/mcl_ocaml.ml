@@ -104,13 +104,23 @@ let rec constc = function
   | Bool false -> lift_construct "false"
   | Err e -> apply (lift_ident "raise") ["", (apply (lift_ident "Invalid_Argument") ["", (constant (Const_string (e, None)))])]
 
+let hidden_state = "__s"
+
+let put l = send (lift_ident hidden_state) ("put_" ^ l)
+
+let get l = send (lift_ident hidden_state) ("get_" ^ l)
+
+let binding x e = { pvb_pat = Pat.var (mknoloc x) ; pvb_expr = e ; pvb_attributes = [] ; pvb_loc = none }
+                 
+let ocaml_unit = lift_construct "()"
+                     
 let rec mclc = function
   | Var x -> lift_ident x 
   | Host e -> e
   | Abs(x, e) -> fun_ "" None (Pat.var (mknoloc x)) (mclc e)
   | App(l,r) -> apply (mclc l) [("", (mclc r))]
-  | Let(x, e, i) -> let_ Nonrecursive [{ pvb_pat = Pat.var (mknoloc x) ; pvb_expr = mclc e ; pvb_attributes = [] ; pvb_loc = none }] (mclc i)
-  | Letrec(x, e, i) -> let_ Recursive [{ pvb_pat = Pat.var (mknoloc x) ; pvb_expr = mclc e ; pvb_attributes = [] ; pvb_loc = none }] (mclc i)
+  | Let(x, e, i) -> let_ Nonrecursive [binding x (mclc e)] (mclc i)
+  | Letrec(x, e, i) -> let_ Recursive [binding x (mclc e)] (mclc i)
 
   | Cond(c, t, e) -> ifthenelse (mclc c) (mclc t) (Some (mclc e))
   | Const c -> constc c
@@ -123,6 +133,16 @@ let rec mclc = function
   | Project (n, e) -> let mthd = "pj_" ^ (string_of_int n) in
                       send (mclc e) mthd 
 
+  | Return e  -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [lift_ident hidden_state ; mclc e])
+  | Put(l, e) -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [apply (put l) ["", mclc e] ; ocaml_unit])
+  | Get(l) -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [lift_ident hidden_state ; get l])
+  | Bind(x, m, e) -> let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
+                                          pvb_expr = (apply (mclc m) ["", lift_ident hidden_state]);
+                                          pvb_attributes = [] ;
+                                          pvb_loc = none ;
+                                        }]                          
+                          (apply (mclc e) ["", lift_ident x ; "", lift_ident hidden_state])
+                   
 and array_update a i  e = Let("src", a, Let("idx", i, 
                                             Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
                                                app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
