@@ -74,6 +74,8 @@ let samples = [
 
   ("(1,2.,1+2).3", VConst(Int(3)));
   ("#⟦⟧"), VConst(Int(0));
+  ("#⟦⟦⟧ with 0 = 1⟧"), VConst(Int(1));
+  ("#⟦⟦⟧ with 0 = 1⟧[0]"), VConst(Int(1));  
 ]
 						  
 let suite = "Compiler" >:::	      

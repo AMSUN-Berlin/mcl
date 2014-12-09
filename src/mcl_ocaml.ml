@@ -77,9 +77,9 @@ let array_append =
 
 let array_singleton e = array [e]
 
-let array_change = fun_ "" None (Pat.var (mknoloc "a")) (
-                          fun_ "" None (Pat.var (mknoloc "i")) (
-                                 fun_ "" None (Pat.var (mknoloc "e")) (
+let array_change = fun_ "" None (Pat.var (mknoloc "i")) (
+                          fun_ "" None (Pat.var (mknoloc "e")) (
+                                 fun_ "" None (Pat.var (mknoloc "a")) (
                                         sequence
                                         (apply array_set ["", lift_ident "a"; "", lift_ident "i"; "", lift_ident "e"])
                                         (lift_ident "a")
