@@ -113,7 +113,9 @@ let get l = send (lift_ident hidden_state) ("get_" ^ l)
 let binding x e = { pvb_pat = Pat.var (mknoloc x) ; pvb_expr = e ; pvb_attributes = [] ; pvb_loc = none }
                  
 let ocaml_unit = lift_construct "()"
-                     
+
+let monad e = fun_ "" None (Pat.var (mknoloc hidden_state)) e
+                                
 let rec mclc = function
   | Var x -> lift_ident x 
   | Host e -> e
@@ -133,15 +135,15 @@ let rec mclc = function
   | Project (n, e) -> let mthd = "pj_" ^ (string_of_int n) in
                       send (mclc e) mthd 
 
-  | Return e  -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [lift_ident hidden_state ; mclc e])
-  | Put(l, e) -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [apply (put l) ["", mclc e] ; ocaml_unit])
-  | Get(l) -> fun_ "" None (Pat.var (mknoloc hidden_state)) (tuple [lift_ident hidden_state ; get l])
-  | Bind(x, m, e) -> let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
+  | Return e  -> monad (tuple [lift_ident hidden_state ; mclc e])
+  | Put(l, e) -> monad (tuple [apply (put l) ["", mclc e] ; ocaml_unit])
+  | Get(l) -> monad (tuple [lift_ident hidden_state ; get l])
+  | Bind(x, m, e) -> monad (let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
                                           pvb_expr = (apply (mclc m) ["", lift_ident hidden_state]);
                                           pvb_attributes = [] ;
                                           pvb_loc = none ;
                                         }]                          
-                          (apply (mclc e) ["", lift_ident x ; "", lift_ident hidden_state])
+                          (apply (mclc e) ["", lift_ident x ; "", lift_ident hidden_state]))
                    
 and array_update a i  e = Let("src", a, Let("idx", i, 
                                             Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
