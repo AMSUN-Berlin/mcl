@@ -258,5 +258,5 @@ let _ =
   | Invalid_argument _ -> 
      Ocaml_opttoploop.initialize_toplevel_env () ;
      _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_opttoploop.execute_phrase) ;
-     _ocaml_elaborator := Some (compile_and_elaborate_expr Ocaml_toploop.execute_phrase)
+     _ocaml_elaborator := Some (compile_and_elaborate_expr Ocaml_opttoploop.execute_phrase)
                               
