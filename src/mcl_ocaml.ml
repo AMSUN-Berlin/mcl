@@ -143,17 +143,20 @@ let rec mclc = function
                                           pvb_attributes = [] ;
                                           pvb_loc = none ;
                                         }]                          
-                          (apply (mclc e) ["", lift_ident x ; "", lift_ident hidden_state]))
+                          (apply (mclc (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]))
                    
-and array_update a i  e = Let("src", a, Let("idx", i, 
-                                            Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
-                                               app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
-                                               Cond(bin_op "=" (Var "idx") (Var "len"), 
-                                                  app (Host array_append) (Var "src")  [Host(array_singleton (mclc e))],
-                                                  Const(Err("Array index out of bounds"))
-                                                 )
-                                              )
-                                           )
+and array_update a i  e = Let("src", a,
+                              Let("len", Length(a),
+                                  Let("idx", i, 
+                                      Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
+                                           app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
+                                           Cond(bin_op "=" (Var "idx") (Var "len"), 
+                                                app (Host array_append) (Var "src")  [Host(array_singleton (mclc e))],
+                                                Const(Err("Array index out of bounds"))
+                                               )
+                                          )
+                                     )
+                                 )
                              )
 (* Functional array update:
    If idx > 0 && idx < length then copy & update-in-place else if idx = length append else error 
