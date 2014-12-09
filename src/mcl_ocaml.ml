@@ -42,8 +42,8 @@ let lift_ident x =
     pexp_loc = none;
     pexp_attributes = [] }
 
-let lift_construct x =
-  { pexp_desc = Pexp_construct ((lift_lid x), None) ; 		
+let lift_construct ?arg:e x =
+  { pexp_desc = Pexp_construct ((lift_lid x), e) ; 		
     pexp_loc = none;
     pexp_attributes = [] }
 
@@ -102,7 +102,7 @@ let rec constc = function
   | Int i -> constant (Const_int i)
   | Bool true -> lift_construct "true"
   | Bool false -> lift_construct "false"
-  | Err e -> apply (lift_ident "raise") ["", (apply (lift_ident "Invalid_Argument") ["", (constant (Const_string (e, None)))])]
+  | Err e -> apply (lift_ident "raise") ["", (lift_construct ~arg:(constant (Const_string (e, None))) "Invalid_argument")]
 
 let hidden_state = "__s"
 
