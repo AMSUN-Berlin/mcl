@@ -34,7 +34,7 @@
 %token PLUS MINUS TIMES DIV PLUSDOT MINUSDOT TIMESDOT DIVDOT 
 %token EOF
 
-%token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH
+%token IF THEN ELSE NEW LET REC IN PUT GET RETURN MODEL STATE REPLACE REPLACEABLE EXTEND WITH TRUE FALSE
 
 %right lowest
 %nonassoc IDENT INT FLOAT HOST LAMBDA LPAREN RPAREN RBRACKET LDBRACKET RDBRACKET LBRACE RBRACE LEFTARROW BULLET LANGLE RANGLE 
@@ -99,8 +99,10 @@ expr_comma_list:
   | e1=expr COMMA e2=expr  { [e2;e1] }
 
 expr:
-| i = INT
-    { Const (Int (i)) }
+  | TRUE { Const(Bool(true)) }
+  | FALSE { Const(Bool(false)) }
+  | i = INT 
+            { Const (Int (i)) }
 | f = FLOAT
     { Const (Float (f)) }
 | x = IDENT 
