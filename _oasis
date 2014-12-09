@@ -17,6 +17,13 @@ Library mcllib
   Modules:    Mcl, Mcl_lexer, Mcl_parser, Mcl_gen_parser, Mcl_dynamics, Mcl_pp, Mcl_ocaml, Ocaml_genprintval, Ocaml_toploop, Ocaml_opttoploop
   BuildDepends: bigarray, batteries, menhirLib, sedlex, compiler-libs.common, compiler-libs.bytecomp, compiler-libs.optcomp, dynlink, ppx_deriving.eq, ppx_deriving.show
 
+Executable mclc
+  Path: src
+  MainIs: mclc.ml
+  BuildTools: ocamlbuild
+  CompiledObject: best
+  BuildDepends: mcllib, batteries
+  
 Executable "mcl_tests"
   Path: test
   MainIs: mcl_tests.ml

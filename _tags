@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 76ab75a31971a4c93aa20e4b3de46a6d)
+# DO NOT EDIT (digest: 4442195276414a00e94612e65a333df5)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -16,6 +16,18 @@ true: annot, bin_annot
 "_darcs": not_hygienic
 # Library mcllib
 "src/mcllib.cmxs": use_mcllib
+# Executable mclc
+<src/mclc.{native,byte}>: pkg_batteries
+<src/mclc.{native,byte}>: pkg_bigarray
+<src/mclc.{native,byte}>: pkg_compiler-libs.bytecomp
+<src/mclc.{native,byte}>: pkg_compiler-libs.common
+<src/mclc.{native,byte}>: pkg_compiler-libs.optcomp
+<src/mclc.{native,byte}>: pkg_dynlink
+<src/mclc.{native,byte}>: pkg_menhirLib
+<src/mclc.{native,byte}>: pkg_ppx_deriving.eq
+<src/mclc.{native,byte}>: pkg_ppx_deriving.show
+<src/mclc.{native,byte}>: pkg_sedlex
+<src/mclc.{native,byte}>: use_mcllib
 <src/*.ml{,i,y}>: pkg_batteries
 <src/*.ml{,i,y}>: pkg_bigarray
 <src/*.ml{,i,y}>: pkg_compiler-libs.bytecomp
@@ -26,6 +38,7 @@ true: annot, bin_annot
 <src/*.ml{,i,y}>: pkg_ppx_deriving.eq
 <src/*.ml{,i,y}>: pkg_ppx_deriving.show
 <src/*.ml{,i,y}>: pkg_sedlex
+<src/*.ml{,i,y}>: use_mcllib
 # Executable mcl_tests
 <test/mcl_tests.{native,byte}>: pkg_batteries
 <test/mcl_tests.{native,byte}>: pkg_bigarray

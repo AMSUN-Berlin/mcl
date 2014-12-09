@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 0c6ebb9d4df4d1e5e86a1d60668716e4) *)
+(* DO NOT EDIT (digest: 36bc7c52472c67f312e3bf9228acc2f8) *)
 
 This is the INSTALL file for the mcl distribution.
 
@@ -13,7 +13,7 @@ In order to compile this package, you will need:
 
 * ocaml
 * findlib
-* batteries for library mcllib
+* batteries for library mcllib, executable mclc
 * menhirLib for library mcllib
 * sedlex for library mcllib
 * compiler-libs for library mcllib
