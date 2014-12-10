@@ -40,42 +40,58 @@ let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 let eval e = 
   match ocaml_interpreter with 
     Some ocaml_interpreter -> begin
-			     match (ocaml_interpreter (mclc e)) with
+			     match (ocaml_interpreter (mclc_prefix (mclc e))) with
 			       Result.Ok (_, v) -> object_value v
 			     | Result.Bad err -> VConst(Err(err))
     end
   | None -> VConst(Err("Error loading OCaml interpreter"))
 
 let test_case (input, expected) =
-  let msg = Printf.sprintf "Check equality with '%s'" (val2str expected) in
-  let equals e = (bin_op "=" e (lift_value expected)) in
+  let msg = Printf.sprintf "Check equality with '%s'" (expr2str expected) in
+  let equals e = (bin_op "=" e expected) in
   (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input (fun e -> assert_equal ~msg:msg ~printer:val2str (VConst (Bool true)) (eval (equals e))))
 
 let samples = [
-  ("true", VConst(Bool(true)));
-  ("42", VConst(Int(42)) );
-  ("42.", VConst(Float(42.)) );
-  ("⟪(+)⟫ 40 2", VConst(Int(42)) );
-  ("⟪(>)⟫ 40 2 ", VConst(Bool(true)) );
-  ("let v = ⟦1⟧ in v[0]", VConst(Int(1)));
-  ("let f = ⟪(+)⟫ 40 in (f 2)", VConst(Int(42)) );
-  ("-1", VConst(Int(-1)) );
-  ("⟪(>)⟫ 0 2", VConst(Bool(false)));
-  ("⟪(>)⟫ (-1) 2", VConst(Bool(false)));
+  ("true", Const(Bool(true)));
+  ("42", Const(Int(42)) );
+  ("42.", Const(Float(42.)) );
+  ("⟪(+)⟫ 40 2", Const(Int(42)) );
+  ("⟪(>)⟫ 40 2 ", Const(Bool(true)) );
+  ("let v = ⟦1⟧ in v[0]", Const(Int(1)));
+  ("let f = ⟪(+)⟫ 40 in (f 2)", Const(Int(42)) );
+  ("-1", Const(Int(-1)) );
+  ("⟪(>)⟫ 0 2", Const(Bool(false)));
+  ("⟪(>)⟫ (-1) 2", Const(Bool(false)));
 
-  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 1",  VConst(Int(1)));
-  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 2",  VConst(Int(2)));
-  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 3",  VConst(Int(6)));
-  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 6",  VConst(Int(720)));
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 1",  Const(Int(1)));
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 2",  Const(Int(2)));
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 3",  Const(Int(6)));
+  ("let rec fac = λn.if n > 0 then n * (fac (n - 1)) else 1 in fac 6",  Const(Int(720)));
 
-  ("let foo = None in match foo with None -> 1 | Some d -> d in foo", VConst(Int(1)));
+  (*("let foo = None in match foo with None -> 1 | Some d -> d in foo", Const(Int(1)));*)
+  ("let id x = x in (id (1,2)).2", Const(Int(2)));
 
-  ("⟦1;2;3⟧", VVec([|VConst(Int(1));VConst(Int(2));VConst(Int(3));|])) ;
+  ("⟦1;2;3⟧", Vec([|Const(Int(1));Const(Int(2));Const(Int(3));|])) ;
 
-  ("(1,2.,1+2).3", VConst(Int(3)));
-  ("#⟦⟧"), VConst(Int(0));
-  ("#⟦⟦⟧ with 0 = 1⟧"), VConst(Int(1));
-  ("⟦⟦⟧ with 0 = 1⟧[0]"), VConst(Int(1));  
+  ("(1,2.,1+2).3", Const(Int(3)));
+  ("#⟦⟧"), Const(Int(0));
+  ("#⟦⟦⟧ with 0 = 1⟧"), Const(Int(1));
+  ("⟦⟦⟧ with 0 = 1⟧[0]"), Const(Int(1));  
+  
+  (
+  let test_state = StrMap.add "n" (Const(Int(1)))  StrMap.empty in
+  let state = statec test_state in
+  (Printf.sprintf "⟪fun (s,x) -> x⟫((x ← n•get ; void ← n•put (x + 1) ; x ← n•get ; return x)(⟪%s⟫))" (Pprintast.string_of_expression state), Const(Int(2))) );
+
+  (
+  let test_state = StrMap.add "a" (Vec [||]) StrMap.empty in
+  let state = statec test_state in
+  (Printf.sprintf "⟪fun (s,x) -> x⟫((as ← a•get ; void ← a•put ⟦as with 0 = 1⟧ ; as ← a•get ; return as[0])(⟪%s⟫))" (Pprintast.string_of_expression state), Const(Int(1))) );
+
+  let test_state = StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty in
+  let state = statec test_state in
+  (Printf.sprintf "(⟪fun (s,x) -> x⟫((n ← count•get ; return n)(⟪%s⟫))).1" (Pprintast.string_of_expression state), (Const (Int 1)));
+  
 ]
 						  
 let suite = "Compiler" >:::	      
