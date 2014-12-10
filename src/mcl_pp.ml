@@ -52,7 +52,7 @@ let rec pp_const fmt = function
   | Err msg -> fprintf fmt "error: '%s'" msg 
 
 and pp_expr fmt = function
-  | Host e -> fprintf fmt "⟪@[%a@]⟫" (Printast.expression 10) e
+  | Host e -> fprintf fmt "⟪@[%a@]⟫" (Pprintast.expression) e
   | Var x -> fprintf fmt "@[%s@]" x
   | Abs(x, e) -> fprintf fmt "@[(λ%s.%a)@]" x pp_expr e
   | App(e1, e2) -> fprintf fmt "@[(%a@ %a)@]" pp_expr e1 pp_expr e2
