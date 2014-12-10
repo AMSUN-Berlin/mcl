@@ -102,6 +102,30 @@ type complex_test_case = {
   expected_value : value;
 }
 
+let counter = { name = "counter" ;
+                start_state = StrMap.add "count" (Const (Int 0)) StrMap.empty ;
+                expected_state = StrMap.add "count" (VConst (Int 1)) StrMap.empty ;
+                expected_value = VConst(Int(1));
+                input = "
+                let t = (1,1) in
+                let inc = n ← count•get ;
+                          let n' = t.1 + n in
+                          void ← count•put n' ;
+                          return n'
+                in inc
+                " ;}
+
+let tuple_counter = { name = "tuple counter" ;
+                      start_state = StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty ;
+                      expected_state = StrMap.add "count" (VConst (Int 1)) StrMap.empty ;
+                      expected_value = VTup([VConst(Int(1));VConst(Int(1))]);
+                      input = "
+                               let inc = n ← count•get ;                                         
+                                         return n
+                               in inc
+                " ;}
+
+                
 let new_state = { name = "new state" ;
                   start_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty );
 
@@ -138,7 +162,7 @@ let free_fall =
     input =
       explicit_linear_ode_modeling ^ 
     "
-     _ ← prepare ;
+     void ← prepare ;
      h ← new_state ;
      v ← new_state ;
      xs ← states•get ;
@@ -183,10 +207,13 @@ let elaborate_compiled {name ; input ; start_state ; expected_value} =
     
                                  
 let test_cases = [ 
+  elaborate counter ;
   elaborate new_state ;
   elaborate add_equation ;
   (* elaborate free_fall ; *)
 
+  elaborate_compiled counter ; 
+  elaborate_compiled tuple_counter ;
   elaborate_compiled new_state ;
   elaborate_compiled add_equation ;
   elaborate_compiled free_fall ;
