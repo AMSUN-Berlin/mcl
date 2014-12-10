@@ -32,6 +32,8 @@ val lift_ident : string -> Parsetree.expression
 
 val bin_op : string -> Mcl.expr -> Mcl.expr -> Mcl.expr
 
+val mclc_prefix : Parsetree.expression -> Parsetree.expression
+
 val mclc : Mcl.expr -> Parsetree.expression
 
 val statec : Mcl.expr Mcl.StrMap.t -> Parsetree.expression

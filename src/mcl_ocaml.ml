@@ -114,8 +114,25 @@ let binding x e = { pvb_pat = Pat.var (mknoloc x) ; pvb_expr = e ; pvb_attribute
                  
 let ocaml_unit = lift_construct "()"
 
-let monad e = fun_ "" None (Pat.var (mknoloc hidden_state)) e
-                                
+let monad e = fun_ "" None (Pat.var (mknoloc hidden_state)) (
+                     let state' = hidden_state ^ "'" in
+                     let x = "x" in
+                     let id_arg = tuple [ lift_ident hidden_state ; lift_ident state' ] in
+                     let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc (state')); Pat.var (mknoloc x)];
+                                          pvb_expr = e ;
+                                          pvb_attributes = [] ;
+                                          pvb_loc = none ;
+                                        }]
+                          (tuple [apply (lift_ident "type_ident") ["", id_arg] ; lift_ident x])
+                   )
+
+let type_ident = (fun_ "" None
+                       (Pat.constraint_ (Pat.tuple [Pat.var (mknoloc "a") ; Pat.var (mknoloc "b")])
+                                        (Typ.tuple [Typ.var "a" ; Typ.var "a"])) (lift_ident "b"))
+                   
+let mclc_prefix e = let_ Nonrecursive [binding "type_ident" type_ident] e
+(* attach required prefix (i.e. core functions used by the compiler) to an ocaml expression *)
+                         
 let rec mclc = function
   | Var x -> lift_ident x 
   | Host e -> e
@@ -138,12 +155,15 @@ let rec mclc = function
   | Return e  -> monad (tuple [lift_ident hidden_state ; mclc e])
   | Put(l, e) -> monad (tuple [apply (put l) ["", mclc e] ; ocaml_unit])
   | Get(l) -> monad (tuple [lift_ident hidden_state ; get l])
-  | Bind(x, m, e) -> monad (let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
-                                          pvb_expr = (apply (mclc m) ["", lift_ident hidden_state]);
-                                          pvb_attributes = [] ;
-                                          pvb_loc = none ;
-                                        }]                          
-                          (apply (mclc (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]))
+  | Bind(x, m, e) ->
+     let continue = (apply (mclc (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]) in
+     
+     monad (let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
+                                 pvb_expr = (apply (mclc m) ["", lift_ident hidden_state]);
+                                 pvb_attributes = [] ;
+                                 pvb_loc = none ;
+                               }]
+                 continue)
                    
 and array_update a i  e = Let("src", a,
                               Let("len", Length(a),
