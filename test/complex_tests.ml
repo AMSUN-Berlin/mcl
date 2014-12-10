@@ -163,7 +163,7 @@ let ocaml_elaborator = Mcl_ocaml.ocaml_elaborator ()
 let compile_and_elab s e =
   match ocaml_elaborator with 
     Some ocaml_elaborator -> begin
-			     match (ocaml_elaborator (statec s) (mclc e)) with
+			     match (ocaml_elaborator (statec s) (mclc_prefix (mclc e))) with
 			       Result.Ok (_, v) -> object_value v
 			     | Result.Bad err -> VConst(Err(err))
     end
