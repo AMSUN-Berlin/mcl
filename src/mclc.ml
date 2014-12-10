@@ -32,7 +32,9 @@ open Mcl
 open Mcl_lexer
 open Mcl_pp
 open Mcl_ocaml
-       
+
+let default_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty )
+                                    
 let _ = let s = IO.read_all IO.stdin in
         try
           let ucs = state_from_utf8_string s in
@@ -40,7 +42,8 @@ let _ = let s = IO.read_all IO.stdin in
           let last () = last_token ucs in
           let mcl_expr = expr_parser "stdin" next last in
           let ocaml_expr = mclc_prefix (mclc mcl_expr) in          
-          Printf.printf "let _ =\n%s" (Pprintast.string_of_expression ocaml_expr)
+          Printf.printf "let model =\n%s" (Pprintast.string_of_expression ocaml_expr) ;
+          Printf.printf "let state =\n%s" (Pprintast.string_of_expression (statec default_state)) ;
         with 
           SyntaxError e -> Printf.printf "Syntax Error at %s:\n%s" (show_syntax_error e) (error_message e s)
 
