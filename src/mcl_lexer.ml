@@ -316,7 +316,7 @@ let next_token ( { src ; buf ; m_cursor } as ls ) =
     | "<>" -> NEQ
     | '#' -> HASH
 
-    | Opt('-'), number, '.', Opt( number ), Opt ( 'e', number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
+    | Opt('-'), number, '.', Opt( number ), Opt ( 'e', Opt('+' | '-'), number ) ->  ( FLOAT ( float_of_string (Sedlexing.Utf8.lexeme buf) ) )
     | '.' ->  ( DOT )
     | Opt('-'), number ->  ( INT ( int_of_string (current () ) ))
       
