@@ -114,17 +114,6 @@ let counter = { name = "counter" ;
                           return n'
                 in inc
                 " ;}
-
-let tuple_counter = { name = "tuple counter" ;
-                      start_state = StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty ;
-                      expected_state = StrMap.add "count" (VConst (Int 1)) StrMap.empty ;
-                      expected_value = VTup([VConst(Int(1));VConst(Int(1))]);
-                      input = "
-                               let inc = n ← count•get ;                                         
-                                         return n
-                               in inc
-                " ;}
-
                 
 let new_state = { name = "new state" ;
                   start_state = StrMap.add "equations" (Vec [||]) (StrMap.add "states" (Vec [||]) StrMap.empty );
@@ -213,7 +202,6 @@ let test_cases = [
   (* elaborate free_fall ; *)
 
   elaborate_compiled counter ; 
-  elaborate_compiled tuple_counter ;
   elaborate_compiled new_state ;
   elaborate_compiled add_equation ;
   elaborate_compiled free_fall ;
