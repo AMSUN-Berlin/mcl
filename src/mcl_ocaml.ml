@@ -223,9 +223,11 @@ let lift_to_elab_phrase x s state e = Ptop_def [{pstr_desc = Pstr_value (Asttype
 							   }] ) ; 
 				    pstr_loc = Location.none }]
 
-open BatResult
+open Result
+open Result.Infix
 open Ocaml_common
-
+open Outcometree
+  
 let fresh_var_counter = ref 0 
 let _ocaml_interpreter = ref None
 let _ocaml_elaborator = ref None
@@ -234,6 +236,12 @@ let ocaml_interpreter () = !_ocaml_interpreter
 
 let ocaml_elaborator () = !_ocaml_elaborator
 
+let unpack x msg = function
+  | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
+  | Ophr_eval(v,_) -> Ok (x, v)
+  | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
+  | _ -> Bad msg
+             
 let compile_and_eval_expr execute_phrase e = 
   let x = Printf.sprintf "$tmp%d" !fresh_var_counter in
   incr fresh_var_counter ;
@@ -242,11 +250,7 @@ let compile_and_eval_expr execute_phrase e =
     let output = Format.flush_str_formatter () in
 
     if success then
-      match result with
-      | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
-      | Ophr_eval(v,_) -> Ok (x, v)
-      | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
-      | _ -> Bad output
+      unpack x output result
     else
       Bad output
   with
@@ -264,9 +268,8 @@ let compile_and_elaborate_expr execute_phrase state e =
     if success then
       match result with
       | Ophr_exception (exn,_) -> Bad (Printexc.to_string exn)
-      | Ophr_eval(v,_) -> Ok (x, v)
-      | Ophr_signature ((_,Some(v))::_) -> Ok (x,v)
-      | _ -> Bad output
+      | _ -> let r = (execute_phrase true Format.str_formatter (lift_to_phrase "x" (lift_ident x))).result in
+             unpack "x" (Format.flush_str_formatter ()) r                               
     else
       Bad output
   with

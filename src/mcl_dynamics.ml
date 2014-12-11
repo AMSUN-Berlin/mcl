@@ -400,9 +400,10 @@ let start_elab e = match (eval e) with
 
 open Outcometree
 
-let object_value = function
+let rec object_value = function
   | Oval_constr ( Oide_ident "true", [] ) -> VConst (Bool true )
   | Oval_constr ( Oide_ident "false", [] ) -> VConst (Bool false )
   | Oval_float f -> VConst (Float f)
   | Oval_int i -> VConst (Int i)
+  | Oval_tuple vs -> VTup ( List.map object_value vs)
   | _ -> VConst(Err("cannot translate OCaml non-literal back to mcl"))
