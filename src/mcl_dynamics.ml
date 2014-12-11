@@ -393,9 +393,9 @@ and elab_mv s fds = function
   | MEmpty -> Result.Ok (s, fds)
        
 
-let start_elab e = match (eval e) with 
+let start_elab s e = match (eval e) with 
   | VConst(Err e) -> (StrMap.empty, VConst(Err e))
-  | VMonad(m) -> elab StrMap.empty m 
+  | VMonad(m) -> elab s m 
   | _ as v -> (StrMap.empty, error_expected (expr2str e) "monadic value" (val2str v))
 
 open Outcometree

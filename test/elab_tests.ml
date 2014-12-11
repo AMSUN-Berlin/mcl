@@ -37,7 +37,7 @@ open Mcl_dynamics
 let test_elab (input, expected) =
   (Printf.sprintf "test evaluating '%s'" input) >:: (
     Parser_tests.expr_test input (
-    fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str expected (start_elab e)))
+    fun e -> assert_equal ~msg:"equality of elaboration" ~printer:elab2str expected (start_elab (StrMap.empty) e)))
 
 let obj fds = VObj(StrMap.of_enum (List.enum fds))
 

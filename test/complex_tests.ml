@@ -188,7 +188,7 @@ let parse {name ; input} =
 
 let elaborate {name ; input ; start_state ; expected_state; expected_value} = 
   (Printf.sprintf "Test elaborating '%s'" name) >:: 
-    Parser_tests.expr_test input (fun e -> assert_equal ~cmp:elab_equality ~msg:"equality of elaboration" ~printer:(elab2str ~max:12) (expected_state,expected_value) (start_elab e))
+    Parser_tests.expr_test input (fun e -> assert_equal ~cmp:elab_equality ~msg:"equality of elaboration" ~printer:(elab2str ~max:12) (expected_state,expected_value) (start_elab (StrMap.map eval start_state) e))
 
 let elaborate_compiled {name ; input ; start_state ; expected_value} = 
   (Printf.sprintf "Test elaborating compiled '%s'" name) >::
