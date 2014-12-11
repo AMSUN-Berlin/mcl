@@ -168,7 +168,7 @@ let rec mclc = function
 and array_update a i  e = Let("src", a,
                               Let("len", Length(a),
                                   Let("idx", i, 
-                                      Cond(bin_op "&&" (bin_op ">" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
+                                      Cond(bin_op "&&" (bin_op ">=" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
                                            app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
                                            Cond(bin_op "=" (Var "idx") (Var "len"), 
                                                 app (Host array_append) (Var "src")  [Host(array_singleton (mclc e))],
