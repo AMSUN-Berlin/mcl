@@ -278,6 +278,7 @@ let compile_and_elaborate_expr execute_phrase state e =
 let _ = 
   fresh_var_counter := 0 ;  
   try 
+    Warnings.parse_options false "-26" ;
     Ocaml_toploop.initialize_toplevel_env () ;
     _ocaml_interpreter := Some (compile_and_eval_expr Ocaml_toploop.execute_phrase) ;
     _ocaml_elaborator := Some (compile_and_elaborate_expr Ocaml_toploop.execute_phrase)

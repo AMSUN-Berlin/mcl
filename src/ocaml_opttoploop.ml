@@ -231,8 +231,9 @@ let execute_phrase print_outcome ppf phr =
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       Typecore.force_delayed_checks ();
-      let res = Translmod.transl_store_phrases !phrase_name str in
+      let res = Translmod.transl_store_phrases !phrase_name str in      
       Warnings.check_fatal ();
+      
       begin try
         toplevel_env := newenv;
         let res = load_lambda ppf res in
