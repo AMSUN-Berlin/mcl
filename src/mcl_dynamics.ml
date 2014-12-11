@@ -406,4 +406,5 @@ let rec object_value = function
   | Oval_float f -> VConst (Float f)
   | Oval_int i -> VConst (Int i)
   | Oval_tuple vs -> VTup ( List.map object_value vs)
+  | Oval_array vs -> VVec ( Array.of_list (List.map object_value vs))
   | _ -> VConst(Err("cannot translate OCaml non-literal back to mcl"))
