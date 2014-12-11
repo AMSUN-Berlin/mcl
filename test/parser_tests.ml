@@ -83,7 +83,7 @@ let expr input expected =
     ("parsing" >::
        expr_test input (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) ) ;
     ("re-parsing" >::
-       expr_test input (fun e -> expr_test (expr2str e) (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of re-parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) ())) ;
+       expr_test input (fun e -> expr_test (expr2str ~max:100 e) (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of re-parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) ())) ;
   ]
       
   
