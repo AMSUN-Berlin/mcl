@@ -79,15 +79,27 @@ let expr_test input f =
     SyntaxError e -> assert_failure (Printf.sprintf "Syntax Error at %s:\n%s" (show_syntax_error e) (error_message e input))
 
 let expr input expected = 
-  (Printf.sprintf "test parsing '%s'" input) >::      
-    expr_test input (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) 
+  (Printf.sprintf "Parse '%s'" input) >::: [
+    ("parsing" >::
+       expr_test input (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) ) ;
+    ("re-parsing" >::
+       expr_test input (fun e -> expr_test (expr2str e) (fun e -> assert_equal ~cmp:equal_expr ~msg:"equality of re-parsed expression" ~printer:expr2str (prep_expr expected) (prep_expr e)) ())) ;
+  ]
+      
   
-let model input expected = 
-  let ucs = state_from_utf8_string input in
-  let next () = next_token ucs in
-  let last () = last_token ucs in
-  (Printf.sprintf "test parsing '%s'" input) >:: 
-    fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (model_parser "test" next last))
+let model input expected =
+  let parse_model input = 
+    let ucs = state_from_utf8_string input in
+    let next () = next_token ucs in
+    let last () = last_token ucs in
+    model_parser "test" next last
+  in
+  (Printf.sprintf "Parse '%s'" input) >::: [
+    "parsing" >::
+      (fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of parsed model" ~printer:model2str (prep_model expected) (prep_model (parse_model input)) ) ;
+    "re-parsing" >::
+      (fun () -> assert_equal ~cmp:equal_model_expr ~msg:"equality of re-parsed model" ~printer:model2str (prep_model expected) (prep_model (parse_model (model2str (parse_model input)) ))) ;
+  ]
 
 let test_cases = [ 
   expr "1.234" (Const(Float(1.234)));
