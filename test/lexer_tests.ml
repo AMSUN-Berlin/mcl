@@ -58,6 +58,10 @@ let samples = [
   ("+.-.*./.", [PLUSDOT;MINUSDOT;TIMESDOT;DIVDOT]);
   (" 1.234", [FLOAT(1.234)]);
   (" 1234", [INT(1234)]);
+  ("1.2", [FLOAT(1.2)]);
+  ("1.2e10", [FLOAT(1.2e10)]);
+  ("1.2e+10", [FLOAT(1.2e+10)]);  
+  ("1.2e-10", [FLOAT(1.2e-10)]);  
   ("x", [IDENT("x")]) ;
   ("new_foo", [IDENT("new_foo")]);
   ("x2", [IDENT("x2")]);
