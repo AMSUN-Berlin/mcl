@@ -92,7 +92,10 @@ let model input expected =
     let ucs = state_from_utf8_string input in
     let next () = next_token ucs in
     let last () = last_token ucs in
-    model_parser "test" next last
+    try 
+      model_parser "test" next last
+    with
+      SyntaxError e -> assert_failure (Printf.sprintf "Syntax Error at %s:\n%s" (show_syntax_error e) (error_message e input))
   in
   (Printf.sprintf "Parse '%s'" input) >::: [
     "parsing" >::
