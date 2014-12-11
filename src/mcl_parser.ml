@@ -59,7 +59,19 @@ let locate = function
 
 let guard parser next last = try parser next  
                              with
-                               Mcl_gen_parser.Error -> raise ( SyntaxError ( locate (last ()) ) )
+                             | Mcl_parser_utils.HostSyntaxError(loc, e) as exn ->
+                                begin
+                                  match Location.error_of_exn (Syntaxerr.Error e)
+                                  with None -> raise (Syntaxerr.Error e)
+                                     | Some e ->                                                            
+                                        let line = e.loc.loc_start.pos_lnum in
+                                        let err = { line = loc.pos_lnum + line ;
+                                                    char = 1 + loc.pos_cnum + e.loc.loc_start.pos_cnum ;
+                                                    bol = if line = 0 then loc.pos_bol else e.loc.loc_start.pos_bol ;
+                                                    width = e.loc.loc_end.pos_cnum - e.loc.loc_start.pos_cnum ; } in
+                                        raise (SyntaxError err)
+                                end
+                             | Mcl_gen_parser.Error -> raise ( SyntaxError ( locate (last ()) ) )
 
 let expr_parser src = guard (MenhirLib.Convert.traditional2revised get_token (get_start src) (get_end src) Mcl_gen_parser.sole_expr)
 

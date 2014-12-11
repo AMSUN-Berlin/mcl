@@ -52,7 +52,8 @@
 %{
   open Mcl
   open Parsetree
-
+  open Mcl_parser_utils
+         
   let lift_ident x =
     let loc = {
       Location.loc_start = {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0}; 
@@ -180,5 +181,7 @@ expr:
 | RETURN e = expr 
     { Return(e) }
 
-| h = HOST { Host ( Parse.expression (Lexing.from_string h)) }
+| h = HOST { try Host ( Parse.expression (Lexing.from_string h)) with
+               Syntaxerr.Error e -> raise (HostSyntaxError ($startpos, e))
+           }
 
