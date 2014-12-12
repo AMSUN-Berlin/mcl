@@ -97,15 +97,15 @@ let samples = [
   (Printf.sprintf "(⟪fun (s,x) -> x⟫((n ← count•get ; return n)(⟪%s⟫))).1" (Pprintast.string_of_expression state), (Const (Int 1))) );
     
   (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
-            "m ← new { y ⇐ count•get } ; return m#z"
+            "m ← new { y ⇐ count•get } ; return m.y"
             (Const(Int 1))) ;  
   
   (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
-            "m ← new { extend {y ⇐ count•get} } ; return m#y"
+            "m ← new { extend {y ⇐ count•get} } ; return m.y"
             (Const(Int 1))) ;
   
   (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
-            "m ← new { model a = { y ⇐ count•get } in m} ; return m#y"
+            "m ← new { model a = { y ⇐ count•get } in m} ; return m.y"
             (Const(Int 1)));  
 ]
 						  

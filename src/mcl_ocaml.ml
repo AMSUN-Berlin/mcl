@@ -181,8 +181,10 @@ let rec mclc ce = function
                                  pvb_loc = none ;
                                }]
                  continue)
+  | Method(s, e) -> send (mclc ce e) s
   | New(m) -> mclc ce (mcl_modelc ce m)
-           
+                   
+                   
 and fieldc class_env super fields = function
   | [] ->
      let model_field (name, rhs) =
