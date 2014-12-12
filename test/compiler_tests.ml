@@ -51,6 +51,9 @@ let test_case (input, expected) =
   let equals e = (bin_op "=" e expected) in
   (Printf.sprintf "test evaluating '%s'" input) >:: (Parser_tests.expr_test input (fun e -> assert_equal ~msg:msg ~printer:val2str (VConst (Bool true)) (eval (equals e))))
 
+let elaborate state m exp =
+  (Printf.sprintf "(⟪fun (s,x) -> x⟫((%s)(⟪%s⟫))).1" m (Pprintast.string_of_expression (statec state)), exp)
+                                                        
 let samples = [
   ("true", Const(Bool(true)));
   ("42", Const(Int(42)) );
@@ -88,10 +91,22 @@ let samples = [
   let state = statec test_state in
   (Printf.sprintf "⟪fun (s,x) -> x⟫((as ← a•get ; void ← a•put ⟦as with 0 = 1⟧ ; as ← a•get ; return as[0])(⟪%s⟫))" (Pprintast.string_of_expression state), Const(Int(1))) );
 
+  (
   let test_state = StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty in
   let state = statec test_state in
-  (Printf.sprintf "(⟪fun (s,x) -> x⟫((n ← count•get ; return n)(⟪%s⟫))).1" (Pprintast.string_of_expression state), (Const (Int 1)));
+  (Printf.sprintf "(⟪fun (s,x) -> x⟫((n ← count•get ; return n)(⟪%s⟫))).1" (Pprintast.string_of_expression state), (Const (Int 1))) );
+    
+  (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
+            "m ← new { y ⇐ count•get } ; return m#z"
+            (Const(Int 1))) ;  
   
+  (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
+            "m ← new { extend {y ⇐ count•get} } ; return m#y"
+            (Const(Int 1))) ;
+  
+  (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
+            "m ← new { model a = { y ⇐ count•get } in m} ; return m#y"
+            (Const(Int 1)));  
 ]
 						  
 let suite = "Compiler" >:::	      
