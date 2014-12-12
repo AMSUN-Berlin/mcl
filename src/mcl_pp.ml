@@ -72,7 +72,7 @@ and pp_expr fmt = function
   | Update(a,i,e) -> fprintf fmt "@[⟦%a@ with@ %a@ =@ %a⟧@]" pp_expr a pp_expr i pp_expr e
   | Project(n, e) -> fprintf fmt "@[(%a.%d)@]" pp_expr e n
   | Tup(es) -> fprintf fmt "@[(%a)@]" (pp_list ~sep:", " pp_expr) es
-  | Method(e,s) -> fprintf fmt "@[(%a).%s@]" pp_expr e s
+  | Method(s, e) -> fprintf fmt "@[(%a).%s@]" pp_expr e s
                        
 and pp_fd fmt = function
   | Extend m -> fprintf fmt "@[extend %a@]" pp_model m
