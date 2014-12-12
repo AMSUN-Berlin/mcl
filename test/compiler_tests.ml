@@ -40,7 +40,7 @@ let ocaml_interpreter = Mcl_ocaml.ocaml_interpreter ()
 let eval e = 
   match ocaml_interpreter with 
     Some ocaml_interpreter -> begin
-			     match (ocaml_interpreter (mclc_prefix (mclc e))) with
+			     match (ocaml_interpreter (mclc_prefix (mclc empty_class_env e))) with
 			       Result.Ok (_, v) -> object_value v
 			     | Result.Bad err -> VConst(Err(err))
     end

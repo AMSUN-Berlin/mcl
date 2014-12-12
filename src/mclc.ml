@@ -41,7 +41,7 @@ let _ = let s = IO.read_all IO.stdin in
           let next () = next_token ucs in
           let last () = last_token ucs in
           let mcl_expr = expr_parser "stdin" next last in
-          let ocaml_expr = mclc_prefix (mclc mcl_expr) in          
+          let ocaml_expr = mclc_prefix (mclc empty_class_env mcl_expr) in          
           Printf.printf "let model =\n%s" (Pprintast.string_of_expression ocaml_expr) ;
           Printf.printf "let state =\n%s" (Pprintast.string_of_expression (statec default_state)) ;
         with 

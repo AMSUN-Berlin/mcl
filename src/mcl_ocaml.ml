@@ -35,6 +35,10 @@ open Parsetree
 open Location
 open Exp
 
+type class_env = (string list) StrMap.t
+
+let empty_class_env = StrMap.empty 
+       
 let lift_lid x = mknoloc (  Longident.Lident x )
 
 let lift_ident x =
@@ -132,72 +136,115 @@ let type_ident = (fun_ "" None
                    
 let mclc_prefix e = let_ Nonrecursive [binding "type_ident" type_ident] e
 (* attach required prefix (i.e. core functions used by the compiler) to an ocaml expression *)
-                         
-let rec mclc = function
+                                                 
+let rec names_of class_env names =
+  let rec name_of class_env names = function
+    | [] -> names
+    | Unnamed(e)::r -> name_of class_env names r
+    | Named(x,e)::r -> name_of class_env (x::names) r
+    | Replaceable(x,e)::r -> name_of class_env (x::names) r
+    | (Extend m)::r -> name_of class_env (names_of class_env names m) r
+  in
+  function
+  | Model(fds) -> name_of class_env names fds
+
+let add_class_env ce name me = let names = names_of ce [] me in StrMap.add name names ce 
+                          
+let rec mclc ce = function
   | Var x -> lift_ident x 
   | Host e -> e
-  | Abs(x, e) -> fun_ "" None (Pat.var (mknoloc x)) (mclc e)
-  | App(l,r) -> apply (mclc l) [("", (mclc r))]
-  | Let(x, e, i) -> let_ Nonrecursive [binding x (mclc e)] (mclc i)
-  | Letrec(x, e, i) -> let_ Recursive [binding x (mclc e)] (mclc i)
+  | Abs(x, e) -> fun_ "" None (Pat.var (mknoloc x)) (mclc ce e)
+  | App(l,r) -> apply (mclc ce l) [("", (mclc ce r))]
+  | Let(x, e, i) -> let_ Nonrecursive [binding x (mclc ce e)] (mclc ce i)
+  | Letrec(x, e, i) -> let_ Recursive [binding x (mclc ce e)] (mclc ce i)
 
-  | Cond(c, t, e) -> ifthenelse (mclc c) (mclc t) (Some (mclc e))
+  | Cond(c, t, e) -> ifthenelse (mclc ce c) (mclc ce t) (Some (mclc ce e))
   | Const c -> constc c
 
-  | Vec es -> array (List.map mclc (Array.to_list es)) 
-  | Idx (a, i) -> apply (array_get) ["", mclc a ; "", mclc i]
-  | Length (e) -> apply (array_length) ["", mclc e]
-  | Update(a, i, e) -> mclc (array_update a i e)
-  | Tup (es) -> object_ ( Cstr.mk (Pat.any ()) (tuple_fields 1 es) )
+  | Vec es -> array (List.map (mclc ce) (Array.to_list es)) 
+  | Idx (a, i) -> apply (array_get) ["", mclc ce a ; "", mclc ce i]
+  | Length (e) -> apply (array_length) ["", mclc ce e]
+  | Update(a, i, e) -> mclc ce (array_update ce a i e)
+  | Tup (es) -> object_ ( Cstr.mk (Pat.any ()) (tuple_fields ce 1 es) )
   | Project (n, e) -> let mthd = "pj_" ^ (string_of_int n) in
-                      send (mclc e) mthd 
+                      send (mclc ce e) mthd 
 
-  | Return e  -> monad (tuple [lift_ident hidden_state ; mclc e])
-  | Put(l, e) -> monad (tuple [apply (put l) ["", mclc e] ; ocaml_unit])
+  | Return e  -> monad (tuple [lift_ident hidden_state ; mclc ce e])
+  | Put(l, e) -> monad (tuple [apply (put l) ["", mclc ce e] ; ocaml_unit])
   | Get(l) -> monad (tuple [lift_ident hidden_state ; get l])
   | Bind(x, m, e) ->
-     let continue = (apply (mclc (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]) in
+     let continue = (apply (mclc ce (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]) in
      
      monad (let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
-                                 pvb_expr = (apply (mclc m) ["", lift_ident hidden_state]);
+                                 pvb_expr = (apply (mclc ce m) ["", lift_ident hidden_state]);
                                  pvb_attributes = [] ;
                                  pvb_loc = none ;
                                }]
                  continue)
-                   
-and array_update a i  e = Let("src", a,
-                              Let("len", Length(a),
-                                  Let("idx", i, 
-                                      Cond(bin_op "&&" (bin_op ">=" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
-                                           app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
-                                           Cond(bin_op "=" (Var "idx") (Var "len"), 
-                                                app (Host array_append) (Var "src")  [Host(array_singleton (mclc e))],
-                                                Const(Err("Array index out of bounds"))
-                                               )
-                                          )
-                                     )
-                                 )
-                             )
+           
+and fieldc class_env super fields = function
+  | [] ->
+     let model_field (name, rhs) =
+       (Cf.method_ (mknoloc (name)) Public (Cfk_concrete(Fresh, rhs)))
+     in
+     Host(object_ (Cstr.mk (Pat.var (mknoloc "self"))
+                  (List.map model_field fields)))
+         
+  | Named (x, e)::r ->
+     let fields' = (x, lift_ident x)::fields in
+     Bind(x, e, (fieldc class_env super fields' r))
+         
+  | Unnamed(e)::r -> Bind("void", e, (fieldc class_env super fields r))
+
+  | Replaceable(x, e)::r ->
+     let fields' = (x, lift_ident x)::fields in
+     Bind(x, Host(send (lift_ident "mods") x),
+          (fieldc class_env super fields' r))
+         
+  | (Extend m) :: r ->
+     let super_obj = "super" ^ (string_of_int super) in
+     let forward name = (name, send (lift_ident super_obj) name) in
+     let super_fields = List.map forward (names_of class_env [] m) in     
+     Bind(super_obj, mcl_modelc class_env m,
+          (fieldc class_env (super+1) (super_fields @ fields) r))
+    
+and mcl_modelc class_env = function
+  | Model(fields) -> (fieldc class_env 0 [] fields)
+           
+and array_update ce a i  e = Let("src", a,
+                                 Let("len", Length(a),
+                                     Let("idx", i, 
+                                         Cond(bin_op "&&" (bin_op ">=" (Var "idx") (Const (Int 0))) (bin_op "<" (Var "idx") (Var "len")), 
+                                              app (Host array_change) (Var "idx") [e; App ((Host array_copy), Var("src"))],
+                                              Cond(bin_op "=" (Var "idx") (Var "len"), 
+                                                   app (Host array_append) (Var "src")  [Host(array_singleton (mclc ce e))],
+                                                   Const(Err("Array index out of bounds"))
+                                                  )
+                                             )
+                                        )
+                                    )
+                                )
+                                
 (* Functional array update:
    If idx > 0 && idx < length then copy & update-in-place else if idx = length append else error 
 *)
 
-and tuple_fields n = function 
+and tuple_fields ce n = function 
   | [] -> []
   | e::r -> let x = string_of_int n in 
-            (Cf.val_ (mknoloc ("val_" ^ x)) Immutable (Cfk_concrete(Fresh, mclc e))) ::
-              (Cf.method_ (mknoloc ("pj_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident ("val_" ^ x)))) :: (tuple_fields (n+1) r)
+            (Cf.val_ (mknoloc ("val_" ^ x)) Immutable (Cfk_concrete(Fresh, mclc ce e))) ::
+              (Cf.method_ (mknoloc ("pj_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident ("val_" ^ x)))) :: (tuple_fields ce (n+1) r)
 
-and state_field (x, e) = List.enum [(Cf.val_ (mknoloc x) Immutable (Cfk_concrete(Fresh, mclc e))) ; 
-                                    (Cf.method_ (mknoloc ("get_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident x))) ;
-                                    (Cf.method_ (mknoloc ("put_" ^ x)) Public (
-                                                  let x' =  x ^ "'" in
-                                                  Cfk_concrete(Fresh, fun_ "" None (Pat.var (mknoloc (x'))) (override [mknoloc x, lift_ident x']) )
-                                                )
-                                    ) ;
-                                   ]
+and state_field ce (x, e) = List.enum [(Cf.val_ (mknoloc x) Immutable (Cfk_concrete(Fresh, mclc ce e))) ; 
+                                       (Cf.method_ (mknoloc ("get_" ^ x)) Public (Cfk_concrete(Fresh, lift_ident x))) ;
+                                       (Cf.method_ (mknoloc ("put_" ^ x)) Public (
+                                                     let x' =  x ^ "'" in
+                                                     Cfk_concrete(Fresh, fun_ "" None (Pat.var (mknoloc (x'))) (override [mknoloc x, lift_ident x']) )
+                                                   )
+                                       ) ;
+                                      ]
 
-let rec statec s = object_ ( Cstr.mk (Pat.var (mknoloc "self")) (List.of_enum (Enum.concat_map state_field (StrMap.enum s))) )
+let rec statec s = object_ ( Cstr.mk (Pat.var (mknoloc "self")) (List.of_enum (Enum.concat_map (state_field StrMap.empty) (StrMap.enum s))) )
 
 let lift_to_phrase x e = Ptop_def [{pstr_desc = Pstr_value (Asttypes.Nonrecursive,
 							    [{ pvb_pat = {ppat_desc = Ppat_var {Asttypes.txt = x; loc = Location.none } ;

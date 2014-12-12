@@ -28,13 +28,19 @@
 
 open Batteries
 
+type class_env
+
+val empty_class_env : class_env
+       
+val add_class_env : class_env -> string -> Mcl.model_expr -> class_env
+                                                               
 val lift_ident : string -> Parsetree.expression
 
 val bin_op : string -> Mcl.expr -> Mcl.expr -> Mcl.expr
 
 val mclc_prefix : Parsetree.expression -> Parsetree.expression
 
-val mclc : Mcl.expr -> Parsetree.expression
+val mclc : class_env -> Mcl.expr -> Parsetree.expression
 
 val statec : Mcl.expr Mcl.StrMap.t -> Parsetree.expression
 
