@@ -115,7 +115,8 @@ expr:
 | es = expr_comma_list { Tup(List.rev es) }
 
 | e = expr DOT n=INT { Project(n, e) } 
-
+| e = expr DOT x=IDENT { Method(x, e) }
+                       
 | e1 = expr PLUS e2 = expr
     { bin_op "+" e1 e2 }
 | e1 = expr MINUS e2 = expr
