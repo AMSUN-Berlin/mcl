@@ -128,6 +128,8 @@ let test_cases = [
   expr "let f = ⟪(+)⟫ 40 in f 2" (Let("f", App(Host(lift_ident "+"), Const(Int(40))), App(Var("f"), Const(Int(2))) ) );
   expr "let add a b = a + b in 42" (Let("add", Abs("a",Abs("b", App(App(Host(lift_ident "+"), Var("a")), Var("b")))), Const(Int(42))));
 
+  expr "x.bar" (Method("bar", Var("x")));
+  
   expr "xs ← states•get ; x" (Bind("xs", Get("states"), Var("x"))) ;
   expr "xs ← states•put ⟦⟧ ; x" (Bind("xs", Put("states", Vec([||])), Var("x"))) ;
 
