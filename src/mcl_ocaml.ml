@@ -181,14 +181,15 @@ let rec mclc ce = function
                                  pvb_loc = none ;
                                }]
                  continue)
+  | New(m) -> mclc ce (mcl_modelc ce m)
            
 and fieldc class_env super fields = function
   | [] ->
      let model_field (name, rhs) =
        (Cf.method_ (mknoloc (name)) Public (Cfk_concrete(Fresh, rhs)))
      in
-     Host(object_ (Cstr.mk (Pat.var (mknoloc "self"))
-                  (List.map model_field fields)))
+     Return (Host(object_ (Cstr.mk (Pat.var (mknoloc "self"))
+                                   (List.map model_field fields))))
          
   | Named (x, e)::r ->
      let fields' = (x, lift_ident x)::fields in
@@ -206,7 +207,7 @@ and fieldc class_env super fields = function
      let forward name = (name, send (lift_ident super_obj) name) in
      let super_fields = List.map forward (names_of class_env [] m) in     
      Bind(super_obj, mcl_modelc class_env m,
-          (fieldc class_env (super+1) (super_fields @ fields) r))
+          fieldc class_env (super+1) (super_fields @ fields) r)
     
 and mcl_modelc class_env = function
   | Model(fields) -> (fieldc class_env 0 [] fields)
