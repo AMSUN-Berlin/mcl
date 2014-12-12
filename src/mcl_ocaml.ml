@@ -213,7 +213,9 @@ and fieldc class_env super fields = function
     
 and mcl_modelc class_env = function
   | Model(fields) -> (fieldc class_env 0 [] fields)
-           
+  | MLet(x, m, m') -> Let(x, mcl_modelc class_env m, mcl_modelc (add_class_env class_env x m) m')
+  | MVar(x) -> Var(x)
+                       
 and array_update ce a i  e = Let("src", a,
                                  Let("len", Length(a),
                                      Let("idx", i, 

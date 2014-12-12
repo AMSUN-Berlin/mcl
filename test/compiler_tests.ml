@@ -105,7 +105,7 @@ let samples = [
             (Const(Int 1))) ;
   
   (elaborate (StrMap.add "count" (Tup [Const (Int 1) ; Const (Int 0)]) StrMap.empty)
-            "m ← new model a = { y ⇐ count•get } in m ; return m.y"
+            "m ← new model a = { y ⇐ count•get } in a ; return m.y"
             (Const(Int 1)));  
 ]
 						  
