@@ -149,7 +149,7 @@ let rec names_of class_env names =
   | Model(fds) -> name_of class_env names fds
 
 let add_class_env ce name me = let names = names_of ce [] me in StrMap.add name names ce 
-                          
+                                                                                                                                                    
 let rec mclc ce = function
   | Var x -> lift_ident x 
   | Host e -> e
@@ -169,21 +169,21 @@ let rec mclc ce = function
   | Project (n, e) -> let mthd = "pj_" ^ (string_of_int n) in
                       send (mclc ce e) mthd 
 
-  | Return e  -> monad (tuple [lift_ident hidden_state ; mclc ce e])
-  | Put(l, e) -> monad (tuple [apply (put l) ["", mclc ce e] ; ocaml_unit])
-  | Get(l) -> monad (tuple [lift_ident hidden_state ; get l])
-  | Bind(x, m, e) ->
-     let continue = (apply (mclc ce (Abs(x,e))) ["", lift_ident x ; "", lift_ident hidden_state]) in
-     
-     monad (let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc hidden_state); Pat.var (mknoloc x)];
-                                 pvb_expr = (apply (mclc ce m) ["", lift_ident hidden_state]);
-                                 pvb_attributes = [] ;
-                                 pvb_loc = none ;
-                               }]
-                 continue)
+  | Return _ | Put(_,_) | Get(_) | Bind(_,_,_) as m -> monad (routine_body ce m)
+
   | Method(s, e) -> send (mclc ce e) s
   | New(m) -> mclc ce (mcl_modelc ce m)
                    
+and routine_body ce = function
+  | Return(e) -> tuple [lift_ident hidden_state ; mclc ce e]
+  | Put(l, e) -> tuple [apply (put l) ["", mclc ce e] ; ocaml_unit]
+  | Get(l) -> tuple [lift_ident hidden_state ; get l]
+  | Bind(x, m, e) -> let_ Nonrecursive [{ pvb_pat = Pat.tuple [Pat.var (mknoloc (hidden_state)); Pat.var (mknoloc x)];
+                                          pvb_expr = routine_body ce m;
+                                          pvb_attributes = [] ;
+                                          pvb_loc = none ;
+                                        }] (routine_body ce e)
+  | _ as e -> apply (mclc ce e) ["", lift_ident hidden_state]
                    
 and fieldc class_env super fields = function
   | [] ->
